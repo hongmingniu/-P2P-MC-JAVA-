@@ -1,0 +1,11 @@
+bin/
+obj/
+build/
+.vs/
+*.user
+*.suo
+*.pdb
+*.log
+.env
+.env.*
+self-test-result.txt
