@@ -64,7 +64,7 @@ sealed class Session : IAsyncDisposable
         pin = Protocol.Pin(code); port = listenPort; nic = lan; certificate = Protocol.Certificate();
         listener = new TcpListener(IPAddress.IPv6Any, port);
         listener.Server.DualMode = false; listener.Start(16);
-        log($"等待被动方连接，IPv6 TCP 端口 {port}。PIN 在等待 10 分钟后失效，配对成功后仅供当前连接使用。");
+        log($"等待存档接入方连接，IPv6 TCP 端口 {port}。PIN 在等待 10 分钟后失效，配对成功后仅供当前连接使用。");
         var expires = DateTime.UtcNow.AddMinutes(10);
         using var lifetime = stop.Token.Register(() => listener.Stop());
         while (!stop.IsCancellationRequested)
@@ -90,7 +90,7 @@ sealed class Session : IAsyncDisposable
             var hello = JsonSerializer.Deserialize<Message>(await Protocol.ReadFrame(tls, timeout.Token));
             if (hello?.Type == "data" && pending.TryRemove(hello.Id, out var source))
             { handedOff = source.TrySetResult(tls); return; }
-            if (hello?.Type != "control" || Interlocked.CompareExchange(ref claimed, 1, 0) != 0) throw new IOException("仅允许一个被动方配对");
+            if (hello?.Type != "control" || Interlocked.CompareExchange(ref claimed, 1, 0) != 0) throw new IOException("仅允许一个存档接入方配对");
             log("PIN 验证成功，正在接收 Java 版局域网存档。");
             using var channel = new Channel(tls); control = channel;
             Track(Guard(channel.Heartbeat(stop.Token)));
@@ -117,7 +117,7 @@ sealed class Session : IAsyncDisposable
     public async Task Join(string address, string code, int listenPort, LanInterface lan, Game? manual = null)
     {
         if (!IPAddress.TryParse(address.Trim().Trim('[', ']'), out activeAddress) || activeAddress.AddressFamily != AddressFamily.InterNetworkV6)
-            throw new ArgumentException("请输入主动方的 IPv6 地址，不带端口");
+            throw new ArgumentException("请输入加入方的 IPv6 地址，不带端口");
         pin = Protocol.Pin(code); port = listenPort; nic = lan;
         var tls = await Dial(stop.Token);
         using var channel = new Channel(tls); control = channel;
@@ -244,7 +244,7 @@ sealed class Session : IAsyncDisposable
             try
             {
                 player.NoDelay = true;
-                await (owner.control ?? throw new IOException("被动方已断开")).Send(new("open", id, Target: game.Key), ct);
+                await (owner.control ?? throw new IOException("存档接入方已断开")).Send(new("open", id, Target: game.Key), ct);
                 using var tls = await ready.Task.WaitAsync(TimeSpan.FromSeconds(12), ct);
                 await Relay(player.GetStream(), tls, ct);
             }

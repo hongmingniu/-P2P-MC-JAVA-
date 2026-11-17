@@ -1,1 +1,3 @@
-5ccbb44fee21d684dc77f1edb7fb3278e17752ab76c8fe9ac967de4c849715eb  LanPin-Windows.zip
+a6bd6982a41e5c68df372f0f2259660b9e0d5306d36eec01bdc0da63856de352  LanPin-Windows.zip
+bf7def0f728e45783bd46a10c4daf2b33790dd445939b5e22836e2dfedfa35ce  LanPin-Promo-v0.1.1.mp4
+2859e1369e2ca33decae878d7f85925f9ae3ae2d0e279a8a0d3cb5f088c00a77  LanPin-Promo-HTML-v0.1.1.zip

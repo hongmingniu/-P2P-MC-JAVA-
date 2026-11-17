@@ -25,7 +25,7 @@ sealed class MainForm : Form
     readonly ComboBox role = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     readonly ComboBox network = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     readonly TextBox address = new();
-    readonly TextBox pin = new() { PlaceholderText = "被动方填写主动方给出的 PIN" };
+    readonly TextBox pin = new() { PlaceholderText = "存档接入方填写加入方给出的 PIN" };
     readonly NumericUpDown port = new() { Minimum = 1024, Maximum = 65535, Value = 38443 };
     readonly TextBox manual = new() { PlaceholderText = "可选：192.168.1.10:游戏端口 或 127.0.0.1:端口" };
     readonly Button start = new() { Text = "开始分享 / 连接", AutoSize = true };
@@ -38,7 +38,7 @@ sealed class MainForm : Form
     bool closing;
     public MainForm()
     {
-        Text = "LanPin · Minecraft Java 局域网联机"; MinimumSize = new(780, 700); Size = new(880, 800);
+        Text = "LanPin v0.1.1 · Minecraft Java 局域网联机"; MinimumSize = new(780, 700); Size = new(880, 800);
         Font = new Font("Microsoft YaHei UI", 10); StartPosition = FormStartPosition.CenterScreen;
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 13, Padding = new Padding(24) };
         layout.ColumnStyles.Add(new(SizeType.Absolute, 150)); layout.ColumnStyles.Add(new(SizeType.Percent, 100));
@@ -46,15 +46,15 @@ sealed class MainForm : Form
         void Row(int i, string title, Control value) { layout.Controls.Add(new Label { Text = title, AutoSize = true, Padding = new Padding(0, 7, 0, 0) }, 0, i); value.Dock = DockStyle.Fill; value.Margin = new Padding(3, 4, 3, 4); layout.Controls.Add(value, 1, i); }
         var intro = new Label { Text = "IPv6 点对点 · PIN 加密配对 · 自动发现 Java 版 LAN 存档", AutoSize = true, Font = new Font(Font, FontStyle.Bold) };
         layout.Controls.Add(intro, 0, 0); layout.SetColumnSpan(intro, 2);
-        role.Items.AddRange(["主动方：发现并加入远端存档", "被动方：分享本地内网存档"]); role.SelectedIndex = 0;
-        Row(1, "本机角色", role); Row(2, "本机内网接口", network); Row(3, "主动方 IPv6", address); Row(4, "主动方 TCP 端口", port); Row(5, "PIN（请私下传递）", pin); Row(6, "手动游戏地址", manual);
+        role.Items.AddRange(["加入方：发现并加入远端存档", "存档接入方：接入本机或内网存档"]); role.SelectedIndex = 0;
+        Row(1, "本机角色", role); Row(2, "本机内网接口", network); Row(3, "加入方 IPv6", address); Row(4, "加入方 TCP 端口", port); Row(5, "PIN（请私下传递）", pin); Row(6, "手动游戏地址", manual);
         var bar = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill };
         var copy = new Button { Text = "复制分享信息", AutoSize = true };
         copy.Click += (_, _) => { if (!string.IsNullOrWhiteSpace(pin.Text)) Clipboard.SetText($"IPv6: {address.Text}\n端口: {port.Value}\nPIN: {pin.Text}"); };
         var refresh = new Button { Text = "刷新网卡", AutoSize = true }; refresh.Click += (_, _) => RefreshNetworks();
         bar.Controls.AddRange([start, end, copy, refresh]); layout.Controls.Add(bar, 0, 7); layout.SetColumnSpan(bar, 2);
         layout.Controls.Add(status, 0, 8); layout.SetColumnSpan(status, 2);
-        var help = new Label { Text = "被动方：游戏内打开存档 → Esc → 对局域网开放。主动方：多人游戏 → 等待局域网列表。\n两端须有可互通的 IPv6；只需主动方放行入站 TCP 端口。此版不创建虚拟 IP，不支持基岩版。", AutoSize = true };
+        var help = new Label { Text = "存档接入方：连接存档所在内网；存档电脑需对局域网开放并保持运行。\n加入方：在多人游戏中选择〈LanPin〉存档加入。\n两端须有可互通的 IPv6；只需加入方放行入站 TCP 端口。此版不创建虚拟 IP，不支持基岩版。", AutoSize = true };
         layout.Controls.Add(help, 0, 9); layout.SetColumnSpan(help, 2);
         layout.Controls.Add(games, 0, 10); layout.SetColumnSpan(games, 2);
         layout.Controls.Add(log, 0, 11); layout.SetColumnSpan(log, 2);
