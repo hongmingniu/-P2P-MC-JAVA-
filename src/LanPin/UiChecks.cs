@@ -15,7 +15,7 @@ static class UiChecks
     static readonly List<string> results=[];
     static string? reportPath;
     static void Check(bool condition,string message){if(!condition)throw new Exception(message);results.Add("PASS "+message);if(reportPath!=null)File.WriteAllLines(reportPath,results);}
-    static void Snapshot(MainWindow window,string path,double width=1260,double height=860)
+    static void Snapshot(MainWindow window,string path,double width=1200,double height=800)
     {
         var root=(FrameworkElement)window.Content;
         root.Measure(new Size(width,height));root.Arrange(new Rect(0,0,width,height));root.UpdateLayout();
@@ -42,15 +42,20 @@ static class UiChecks
         var typeface=new Typeface(window.FontFamily,FontStyles.Normal,FontWeights.Normal,FontStretches.Normal);
         Check(typeface.TryGetGlyphTypeface(out var glyph)&&glyph.FamilyNames.Values.Any(x=>x.Contains("HarmonyOS Sans",StringComparison.OrdinalIgnoreCase)),"Bundled HarmonyOS Sans SC actually resolves as the UI typeface");
         Check(window.PinBox.IsReadOnly&&window.StartButton.Content.ToString()!.Contains("生成分享"),"Joiner role has a generated read-only PIN");
-        Snapshot(window,Path.Combine(output,"01-joiner.png"));
+        Snapshot(window,Path.Combine(output,"01-home.png"));
+        Check(window.ConnectionOverlay.Visibility==Visibility.Collapsed&&window.PrimaryHomeButton.Content.ToString()!.Contains("开始联机"),"Home starts with one primary action and connection settings hidden");
+        window.OpenConnectionDrawer();Snapshot(window,Path.Combine(output,"01-joiner.png"));
+        Check(window.ConnectionOverlay.Visibility==Visibility.Visible,"Primary action opens the actual connection drawer");
         window.SetRole(false);Check(!window.PinBox.IsReadOnly&&window.ManualBox.IsEnabled,"LAN access role accepts PIN and manual game endpoint");
         window.SetAdvanced(true,false);Snapshot(window,Path.Combine(output,"02-access.png"));
         var root=(FrameworkElement)window.Content;Point button=window.StartButton.TranslatePoint(new Point(0,0),root);
-        Check(button.X>=0&&button.X+window.StartButton.ActualWidth<=1260,"Primary action stays within the window at default size");
-        Snapshot(window,Path.Combine(output,"03-small-window.png"),1060,760);
+        Check(button.X>=0&&button.X+window.StartButton.ActualWidth<=1200,"Primary action stays within the window at default size");
+        Snapshot(window,Path.Combine(output,"03-small-window.png"),980,680);
+        var homePoint=window.PrimaryHomeButton.TranslatePoint(new Point(0,0),root);
+        Check(homePoint.X>0&&homePoint.X+window.PrimaryHomeButton.ActualWidth<980&&homePoint.Y+window.PrimaryHomeButton.ActualHeight<680,"Home action stays inside the smallest supported window");
         button=window.StartButton.TranslatePoint(new Point(0,0),root);
-        Check(button.Y+window.StartButton.ActualHeight<730,"Primary action remains visible at the minimum window size");
-        window.ShowPage(1,false);Snapshot(window,Path.Combine(output,"04-appearance.png"));
+        Check(button.Y+window.StartButton.ActualHeight<650,"Primary action remains visible at the minimum window size");
+        window.ShowPage(1,false);Check(window.ConnectionOverlay.Visibility==Visibility.Collapsed,"Changing pages dismisses the connection drawer without altering its fields");Snapshot(window,Path.Combine(output,"04-appearance.png"));
         string fixture=Path.Combine(output,"wallpaper-fixture.png");MakeFixture(fixture);string originalHash=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fixture)));
         await window.ImportWallpaperAsync(fixture);
         Check(window.CurrentAppearance.Wallpaper!=fixture&&File.Exists(window.CurrentAppearance.Wallpaper),"Custom image is copied into the managed local profile");
@@ -101,8 +106,8 @@ static class UiChecks
         Check(window.WarmGlow.Effect==null&&window.DefaultBackdrop.Children.OfType<System.Windows.Shapes.Ellipse>().All(x=>x.Effect==null),"Large decorative glows use gradients without per-frame blur effects");
         Check(window.WallpaperImage.CacheMode is BitmapCache,"Wallpaper effect output is cached independently of the animated page");
         window.ApplyMaterialLayers(true);
-        Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity==.10&&window.Opacity==1,"Glass layer composition leaves the compositor exposed without fading window contents");
-        Check(window.WallpaperImage.Opacity==.31&&window.ShadeLayer.Opacity<.2,"Glass layer composition preserves translucent image and shade layers");
+        Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity==.18&&window.Opacity==1,"Glass layer composition leaves the compositor exposed without fading window contents");
+        Check(window.WallpaperImage.Opacity==.31&&window.ShadeLayer.Opacity is >.3 and <.7,"Glass layer composition preserves translucent image and shade layers");
         window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false});
         Check(!window.NativeGlassActive&&window.DefaultBackdrop.Opacity==1&&window.WallpaperImage.Opacity==1,"Turning desktop glass off restores the opaque background immediately");
         window.GlassCheck.IsChecked=true;

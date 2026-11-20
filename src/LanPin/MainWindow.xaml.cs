@@ -71,9 +71,9 @@ public partial class MainWindow : Window
     }
     internal void ShowPage(int page,bool animate=true)
     {
-        activePage=page;ConnectPage.Visibility=page==0?Visibility.Visible:Visibility.Collapsed;AppearancePage.Visibility=page==1?Visibility.Visible:Visibility.Collapsed;GuidePage.Visibility=page==2?Visibility.Visible:Visibility.Collapsed;
+        CloseOverlays();activePage=page;ConnectPage.Visibility=page==0?Visibility.Visible:Visibility.Collapsed;AppearancePage.Visibility=page==1?Visibility.Visible:Visibility.Collapsed;GuidePage.Visibility=page==2?Visibility.Visible:Visibility.Collapsed;
         foreach(var (button,index) in new[]{(ConnectTab,0),(AppearanceTab,1),(GuideTab,2)})
-        {button.Background=new SolidColorBrush(Color.FromArgb((byte)(index==page?35:0),210,238,216));button.FontWeight=index==page?FontWeights.Bold:FontWeights.Normal;}
+        {button.Background=Brushes.Transparent;button.Foreground=(Brush)FindResource(index==page?"Ink":"Muted");button.BorderThickness=new Thickness(0,0,0,index==page?1.5:0);button.FontWeight=index==page?FontWeights.Bold:FontWeights.Normal;}
         var transform=(TranslateTransform)PageHost.RenderTransform;
         transform.BeginAnimation(TranslateTransform.YProperty,null);PageHost.BeginAnimation(OpacityProperty,null);transform.Y=0;PageHost.Opacity=1;
         if(animate&&Animate){transform.BeginAnimation(TranslateTransform.YProperty,Motion(9,0,250));PageHost.BeginAnimation(OpacityProperty,new DoubleAnimation(.72,1,TimeSpan.FromMilliseconds(167)));}
@@ -81,6 +81,21 @@ public partial class MainWindow : Window
     void ConnectTabClick(object sender,RoutedEventArgs e)=>ShowPage(0);
     void AppearanceTabClick(object sender,RoutedEventArgs e)=>ShowPage(1);
     void GuideTabClick(object sender,RoutedEventArgs e)=>ShowPage(2);
+    internal void OpenConnectionDrawer()
+    {
+        WorldsOverlay.Visibility=Visibility.Collapsed;ConnectionOverlay.Visibility=Visibility.Visible;
+        DrawerTransform.BeginAnimation(TranslateTransform.XProperty,null);ConnectionDrawer.BeginAnimation(OpacityProperty,null);
+        DrawerTransform.X=0;ConnectionDrawer.Opacity=1;
+        if(!preview)_=Dispatcher.BeginInvoke(DispatcherPriority.Input,new Action(()=>{if(ConnectionOverlay.Visibility==Visibility.Visible)AddressBox.Focus();}));
+        if(Animate){DrawerTransform.BeginAnimation(TranslateTransform.XProperty,Motion(22,0,250));ConnectionDrawer.BeginAnimation(OpacityProperty,new DoubleAnimation(.85,1,TimeSpan.FromMilliseconds(167)));}
+    }
+    internal void CloseOverlays(){ConnectionOverlay.Visibility=WorldsOverlay.Visibility=Visibility.Collapsed;}
+    void OpenConnectionClick(object sender,RoutedEventArgs e)=>OpenConnectionDrawer();
+    void CloseConnectionClick(object sender,RoutedEventArgs e)=>ConnectionOverlay.Visibility=Visibility.Collapsed;
+    void OpenWorldsClick(object sender,RoutedEventArgs e){ConnectionOverlay.Visibility=Visibility.Collapsed;WorldsOverlay.Visibility=Visibility.Visible;}
+    void CloseWorldsClick(object sender,RoutedEventArgs e)=>WorldsOverlay.Visibility=Visibility.Collapsed;
+    void WindowPreviewKeyDown(object sender,KeyEventArgs e)
+    {if(e.Key!=Key.Escape)return;if(NetworkChoice.IsDropDownOpen){NetworkChoice.IsDropDownOpen=false;e.Handled=true;return;}if(LogsOverlay.Visibility==Visibility.Visible)LogsOverlay.Visibility=Visibility.Collapsed;else CloseOverlays();e.Handled=true;}
     void TitleBarMouseDown(object sender,MouseButtonEventArgs e)
     {
         if(e.OriginalSource is DependencyObject source&&FindParent<Button>(source)!=null)return;
@@ -113,15 +128,15 @@ public partial class MainWindow : Window
     internal void SetRole(bool isJoiner)
     {
         if(running)return;joiner=isJoiner;
-        JoinerRoleBorder.BorderBrush=new SolidColorBrush((Color)ColorConverter.ConvertFromString(joiner?"#A7DDB5":"#38C4DAC6"));
-        AccessRoleBorder.BorderBrush=new SolidColorBrush((Color)ColorConverter.ConvertFromString(!joiner?"#A7DDB5":"#38C4DAC6"));
-        JoinerRoleBorder.Background=new SolidColorBrush((Color)ColorConverter.ConvertFromString(joiner?"#35487E56":"#1225381F"));
-        AccessRoleBorder.Background=new SolidColorBrush((Color)ColorConverter.ConvertFromString(!joiner?"#35487E56":"#1225381F"));
+        JoinerRoleBorder.BorderBrush=new SolidColorBrush((Color)ColorConverter.ConvertFromString(joiner?"#AF633E":"#30786E64"));
+        AccessRoleBorder.BorderBrush=new SolidColorBrush((Color)ColorConverter.ConvertFromString(!joiner?"#AF633E":"#30786E64"));
+        JoinerRoleBorder.Background=new SolidColorBrush((Color)ColorConverter.ConvertFromString(joiner?"#00FFFFFF":"#00FFFFFF"));
+        AccessRoleBorder.Background=new SolidColorBrush((Color)ColorConverter.ConvertFromString(!joiner?"#00FFFFFF":"#00FFFFFF"));
         JoinerCheck.Visibility=joiner?Visibility.Visible:Visibility.Hidden;AccessCheck.Visibility=joiner?Visibility.Hidden:Visibility.Visible;
         PinBox.Text="";PinBox.IsReadOnly=joiner;PinBox.Tag=joiner?"开始分享后生成一次性 PIN":"粘贴加入方给出的完整 PIN";
         AddressBox.Text=joiner?FindIpv6():"";AddressBox.Tag=joiner?"自动检测，也可手动填写":"输入加入方给出的 IPv6 地址";
         DetectButton.Visibility=joiner?Visibility.Visible:Visibility.Collapsed;CopyButton.Visibility=joiner?Visibility.Visible:Visibility.Collapsed;CopyButton.IsEnabled=false;
-        ManualBox.IsEnabled=!joiner;StartButton.Content=joiner?"生成分享信息  ↗":"连接加入方  ↗";
+        HomeRole.Text=joiner?"加入朋友的世界":"接入本机或内网存档";ManualBox.IsEnabled=!joiner;StartButton.Content=joiner?"生成分享信息  ↗":"连接加入方  ↗";
         RoleHelp.Text=joiner?"将 IPv6、端口和 PIN 私下发送给存档接入方。双方 IPv6 需互通。":"填写加入方的信息；实际存档电脑需对局域网开放并保持运行。";
         worlds.Clear();UpdateWorldCount();SetState("准备就绪",joiner?"分享信息，等待朋友接入":"连接后发现本机或内网存档","未连接",false);
     }
@@ -152,7 +167,7 @@ public partial class MainWindow : Window
     void DetectIpv6Click(object sender,RoutedEventArgs e){AddressBox.Text=FindIpv6();ToastMessage(AddressBox.Text.Length==0?"未检测到公网 IPv6，可手动填写能被对方访问的 IPv6 地址。":"已更新 IPv6 候选地址，请确认对方可达。");}
     internal void SetAdvanced(bool value,bool animate=true)
     {
-        advanced=value;AdvancedToggle.Content=value?"收起网络选项  −":"网络选项  +";double target=value?94:0;
+        advanced=value;AdvancedToggle.Content=value?"收起网络选项  −":"网络选项  +";double target=value?174:0;
         double current=AdvancedHost.ActualHeight;AdvancedHost.BeginAnimation(HeightProperty,null);AdvancedHost.BeginAnimation(OpacityProperty,null);
         if(animate&&Animate){AdvancedHost.BeginAnimation(HeightProperty,Motion(current,target,250));AdvancedHost.BeginAnimation(OpacityProperty,new DoubleAnimation(value?1:0,TimeSpan.FromMilliseconds(167)));}
         else {AdvancedHost.Height=target;AdvancedHost.Opacity=value?1:0;}
@@ -199,13 +214,13 @@ public partial class MainWindow : Window
     {
         JoinerRoleButton.IsEnabled=AccessRoleButton.IsEnabled=NetworkChoice.IsEnabled=RefreshNetworkButton.IsEnabled=PortBox.IsEnabled=StartButton.IsEnabled=DetectButton.IsEnabled=!busy;
         AddressBox.IsReadOnly=busy;PinBox.IsReadOnly=busy||joiner;ManualBox.IsEnabled=!busy&&!joiner;
-        StopButton.Visibility=busy?Visibility.Visible:Visibility.Collapsed;StopButton.IsEnabled=busy;
+        StopButton.Visibility=busy?Visibility.Visible:Visibility.Collapsed;StopButton.IsEnabled=busy;HomeDisconnect.Visibility=WorldAccessButton.Visibility=busy?Visibility.Visible:Visibility.Collapsed;HomeDisconnect.IsEnabled=busy;PrimaryHomeButton.Content=busy?"连接详情  ↗":"开始联机  ↗";
         CopyButton.IsEnabled=busy&&joiner&&PinBox.Text.Length>0;
     }
     async void StopClick(object sender,RoutedEventArgs e)=>await StopAsync();
     internal async Task StopAsync()
     {
-        if(!running)return;stopping=true;StopButton.IsEnabled=false;SetState("正在断开","释放当前会话与游戏连接","断开中",false);session?.RequestStop();
+        if(!running)return;stopping=true;StopButton.IsEnabled=HomeDisconnect.IsEnabled=false;SetState("正在断开","释放当前会话与游戏连接","断开中",false);session?.RequestStop();
         if(run!=null)await run;
     }
     void OnLog(string message)=>Ui(()=>
@@ -215,7 +230,7 @@ public partial class MainWindow : Window
         else if(message.StartsWith("PIN 验证成功"))SetState("已安全连接",joiner?"等待远端存档公告":"请让存档电脑对局域网开放","已连接",true);
     });
     void SetState(string title,string hint,string compact,bool connected)
-    {StateTitle.Text=title;StateHint.Text=hint;TopStatusText.Text=compact;TopStatusDot.Fill=new SolidColorBrush((Color)ColorConverter.ConvertFromString(connected?"#ADEAC0":"#95AB9B"));StateGlyph.Text=connected?"✓":"⌁";}
+    {StateTitle.Text=title;StateHint.Text=hint;TopStatusText.Text=compact;TopStatusDot.Fill=new SolidColorBrush((Color)ColorConverter.ConvertFromString(connected?"#4F775A":"#80786F"));StateGlyph.Text=connected?"✓":"⌁";}
     void OnWorld(WorldNotice notice)=>Ui(()=>
     {
         var previous=worlds.FirstOrDefault(x=>x.Key==notice.Key);
@@ -241,7 +256,7 @@ public partial class MainWindow : Window
     void ApplyAppearance()
     {
         var (a,b,glow)=appearance.Palette switch
-        {"Dusk"=>("#6E5249","#282E2D","#B78D65"),"Slate"=>("#43586A","#1C2C3D","#679B9F"),_=>("#213B32","#10251E","#7E604E")};
+        {"Dusk"=>("#EAD8C9","#C7B6A8","#D9AD83"),"Slate"=>("#DBE2E4","#B9C6CD","#A8BFC3"),_=>("#E7DFD7","#CBC7C3","#E0AD88")};
         BaseA.Color=(Color)ColorConverter.ConvertFromString(a);BaseB.Color=(Color)ColorConverter.ConvertFromString(b);var glowColor=(Color)ColorConverter.ConvertFromString(glow);glowColor.A=114;GlowStop.Color=glowColor;
         var tint=(Color)ColorConverter.ConvertFromString(b);tint.A=76;
         backdrop.Apply(appearance.DesktopGlass,tint);
@@ -250,7 +265,7 @@ public partial class MainWindow : Window
         BlendSlider.IsEnabled=appearance.DesktopGlass;
         BlendValue.Text=$"{appearance.WallpaperBlend:P0}";
         WallpaperBlur.Radius=appearance.Blur;WallpaperImage.Stretch=appearance.FitInside?Stretch.Uniform:Stretch.UniformToFill;
-        Resources["Glass"]=new SolidColorBrush(Color.FromArgb((byte)Math.Round(appearance.PanelOpacity*255),24,48,39));
+        Resources["Glass"]=new SolidColorBrush(Color.FromArgb((byte)Math.Round(appearance.PanelOpacity*.45*255),255,255,255));
         WallpaperName.Text=appearance.Wallpaper==null?"当前：默认渐变":"当前："+(displayImageName??"已保存的自定义背景");
         BlurValue.Text=$"{appearance.Blur:0}";ShadeValue.Text=$"{appearance.Shade:P0}";PanelValue.Text=$"{appearance.PanelOpacity:P0}";
     }
@@ -258,9 +273,9 @@ public partial class MainWindow : Window
     internal DesktopBackdrop NativeBackdrop=>backdrop;
     internal void ApplyMaterialLayers(bool active)
     {
-        Background=active?Brushes.Transparent:new SolidColorBrush(Color.FromRgb(16,37,29));
-        DefaultBackdrop.Opacity=active?.10:1;
-        ShadeLayer.Opacity=active?appearance.Shade*.3:appearance.Shade;
+        Background=active?Brushes.Transparent:new SolidColorBrush(Color.FromRgb(226,218,211));
+        DefaultBackdrop.Opacity=active?.18:1;
+        ShadeLayer.Opacity=active?.34+appearance.Shade*.38:appearance.Shade*.12;
         WallpaperImage.Opacity=active?appearance.WallpaperBlend:1;
     }
     void ReadAppearanceControls()
