@@ -1,12 +1,12 @@
 # LanPin
 
-当前源码：**v0.4.0 预发布版 — WinUI 3 初版**。
+当前源码：**v0.5.0 预发布版 — WinUI 主题与窗口更新**。
 
 面向 Minecraft Java 的 Windows 局域网发现与 IPv6 点对点联机工具。
 
 ## 下载
 
-[v0.4.0 Release](https://github.com/hongmingniu/LanPin/releases/tag/v0.4.0) · [所有版本](https://github.com/hongmingniu/LanPin/releases)
+[v0.5.0 Release](https://github.com/hongmingniu/LanPin/releases/tag/v0.5.0) · [所有版本](https://github.com/hongmingniu/LanPin/releases)
 
 完整解压对应版本的 Windows 程序包后运行 LanPin.exe，不要只复制 EXE。
 v0.2.x / v0.3.0 为 WPF 版本，需要 .NET Windows Desktop Runtime（建议 .NET 10 x64）；v0.4.0 / v0.5.0 为 WinUI 3 x64，程序包随附 .NET 10 和 WinUI 运行文件。
@@ -57,6 +57,7 @@ Minecraft Java 1.21.11 的真实客户端验证来自此前同机双实例测试
 | [v0.2.5](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.5) | WPF 渲染与圆角修正 |
 | [v0.3.0](https://github.com/hongmingniu/LanPin/releases/tag/v0.3.0) | WPF 布局更新 |
 | [v0.4.0](https://github.com/hongmingniu/LanPin/releases/tag/v0.4.0) | WinUI 3 初版 |
+| [v0.5.0](https://github.com/hongmingniu/LanPin/releases/tag/v0.5.0) | WinUI 主题与窗口更新 |
 
 v0.2.4 存在内容遮挡的严重显示回归，仅供历史研究；v0.4.0 的主题、动效和玻璃观感尚不完整。
 本仓库 `downloads` 和 `docs` 中保留的 v0.1.1 程序及 PDF 为旧版资料，网络角色与条件仍可参考，界面以当前版本为准。
@@ -65,3 +66,9 @@ v0.2.4 存在内容遮挡的严重显示回归，仅供历史研究；v0.4.0 的
 
 项目源码遵循 [GNU GPL v3](LICENSE)。字体、Microsoft 运行文件及其他第三方组件适用各自许可证和 NOTICE，详见每个版本随附的 Licenses 目录。
 HarmonyOS Sans 字体保持原始文件，Copyright 2021 Huawei Device Co., Ltd.
+
+## 宣传片
+
+[30 秒 / 1080p / 60fps 宣传片](https://github.com/hongmingniu/LanPin/releases/download/v0.5.0/LanPin-NEXT-Promo-1080p60.mp4) · [可编辑 HTML 与音乐源码](https://github.com/hongmingniu/LanPin/releases/download/v0.5.0/LanPin-NEXT-Promo-HTML-60fps.zip)
+
+宣传片采用真实 WinUI 页面内部渲染图与镜头变换，不是实时操作录像或拖动性能证明；片内保留制作时的开发预览标识。

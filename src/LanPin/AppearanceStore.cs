@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -7,6 +7,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 namespace LanPin.Desktop;
 public sealed record Appearance
 {
+    public string Theme{get;init;}="system";
     public string? Wallpaper{get;init;}
     public string Palette{get;init;}="Forest";
     public double Blur{get;init;}=7;
@@ -17,7 +18,7 @@ public sealed record Appearance
     public bool FitInside{get;init;}
     public bool ReduceMotion{get;init;}
     static double Clamp(double value,double min,double max,double fallback)=>double.IsFinite(value)?Math.Clamp(value,min,max):fallback;
-    public Appearance Validated()=>this with{Blur=Clamp(Blur,0,24,7),Shade=Clamp(Shade,.2,.8,.45),PanelOpacity=Clamp(PanelOpacity,.4,.95,.73),WallpaperBlend=Clamp(WallpaperBlend,0,.8,.22),Palette=Palette is "Dusk" or "Slate"?Palette:"Forest"};
+    public Appearance Validated()=>this with{Theme=Theme is "light" or "dark"?Theme:"system",Blur=Clamp(Blur,0,24,7),Shade=Clamp(Shade,.2,.8,.45),PanelOpacity=Clamp(PanelOpacity,.4,.95,.73),WallpaperBlend=Clamp(WallpaperBlend,0,.8,.22),Palette=Palette is "Dusk" or "Slate"?Palette:"Forest"};
 }
 public sealed class AppearanceStore
 {

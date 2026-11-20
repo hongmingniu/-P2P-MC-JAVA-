@@ -1,4 +1,4 @@
-﻿LanPin v0.4.0 — WinUI 3 预览版
+﻿LanPin v0.5.0 — WinUI 3 预览版
 
 运行
 Windows 10 22H2 / Windows 11 x64。整个文件夹解压后运行 LanPin.exe，不要只复制 EXE。
@@ -7,12 +7,14 @@ Windows 10 22H2 / Windows 11 x64。整个文件夹解压后运行 LanPin.exe，�
 
 本版界面
 实际使用 Microsoft.UI.Xaml / WinUI 3，不加载 WPF，也不使用浏览器界面。
-首页保留留白、底部导航与主要操作。连接参数使用原生 SplitView 抽屉。
+采用 ChatAIBox 已验证的 WinUI 窗口与主题实现，适配为 LanPin 的侧栏、首页和连接抽屉。
+支持跟随系统、浅色与深色，保留自定义背景和三种默认色调。
+页面使用 250 毫秒缓动入场，按钮具有悬停和按下反馈，可启用减少动效。
 按钮、输入框、角色选择、展开区域、滑块、文件选择器均为原生控件。
-标题区域延伸到窗口顶部，系统保留拖动、缩放、最大化与窗口按钮行为。
-桌面毛玻璃使用 WinUI DesktopAcrylicBackdrop；系统关闭透明效果、高对比度、节能策略或设备环境可能令其回退为不透明背景。
+自绘标题栏按钮，原生窗口命中测试处理拖动、缩放、最大化；客户区去除系统标题栏留边。
+Windows 10 使用独立合成 HostBackdrop 玻璃层，Windows 11 使用 WinUI DesktopAcrylicBackdrop；系统关闭透明效果、高对比度、节能策略或设备环境可能令其回退为不透明背景。
 Windows 10 的圆角使用原生窗口区域兼容处理，Windows 11 优先使用系统圆角。
-内置未修改的 HarmonyOS Sans SC 字体。Windows 的系统窗口按钮由系统绘制。
+内置未修改的 HarmonyOS Sans SC 字体。窗口按钮由 WinUI 控件绘制。
 
 联机
 1. 点击“开始联机”。想加入朋友世界的人选择“加入方”，确认对方能访问的 IPv6，点击生成分享信息。
@@ -36,13 +38,14 @@ Windows 10 的圆角使用原生窗口区域兼容处理，Windows 11 优先使�
 检查与限制
 本版完成原生 WinUI 窗口启动、背景处理、设置保存和双窗口联机集成检查，详细范围见“验证范围.txt”。
 自动检查使用真实 IPv6 回环 TLS、局域网发现格式的组播公告和 TCP 数据流。
-排版预览由程序内部渲染，无法完整记录桌面 Acrylic 或系统窗口按钮。
+排版预览由程序内部渲染，无法完整记录窗口背后的桌面玻璃。
 没有在本版重新执行真实 Minecraft 或异地双机游戏验收，未测量实际鼠标拖动的输入延迟或帧率。
 联机日志仅保留在当前进程内存；严重启动或未处理的界面错误会写入本机 LanPin 数据目录用于排错。分享排错内容前，请检查其中的内网地址、文件路径等个人信息。
 
 开发
-完整应用源码在 src/LanPin。需要 .NET SDK 10 和 Windows 开发环境。
-项目固定 Windows App SDK WinUI 1.8 组件版本，依赖记录于 packages.lock.json。
+完整应用源码在 src/LanPin。需要 .NET SDK 10、Visual Studio 2022 C++ 桌面开发工具与 Windows SDK。
+Native/build.cmd 构建随包的 HostBackdrop 原生桥接 DLL；无需在用户机器上编译。
+项目固定 Windows App SDK WinUI 2.3.9 组件版本，依赖记录于 packages.lock.json。
 dotnet publish src/LanPin/LanPin.csproj -c Release -o build/LanPin
 LanPin.exe --self-test：核心网络自测，结果写入程序目录。
 LanPin.exe --ui-check <输出目录>：独立配置的 WinUI 原生界面及联机检查，并输出排版图。
