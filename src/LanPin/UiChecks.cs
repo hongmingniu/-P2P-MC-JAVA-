@@ -76,6 +76,7 @@ static class UiChecks
         Check(window.NativeGlassActive||window.MaterialStatus.Text.Contains("普通背景"),"Native compositor request succeeds or reports a readable fallback");
         if(window.NativeGlassActive)
         {
+            Check(WindowChrome.GetWindowChrome(window).GlassFrameThickness==(OperatingSystem.IsWindowsVersionAtLeast(10,0,22621)?new Thickness(-1):new Thickness(0,1,0,0)),"Native frame extension matches modern DWM or legacy acrylic requirements");
             Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity<.2&&window.Opacity==1,"Native glass exposes the compositor while keeping the whole window fully opaque");
             Check(window.WallpaperImage.Opacity==.31,"Native glass blends custom imagery instead of covering the compositor");
         }

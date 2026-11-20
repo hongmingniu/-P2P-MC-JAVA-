@@ -1,4 +1,4 @@
-﻿LanPin Next v0.2.1 - 桌面界面预览版
+﻿LanPin Next v0.2.2 - 桌面界面预览版
 
 运行
 Windows 10/11 x64，需安装 .NET Windows Desktop Runtime 10 x64（本包不含运行时）。
@@ -6,6 +6,7 @@ Windows 10/11 x64，需安装 .NET Windows Desktop Runtime 10 x64（本包不含
 解压整个程序包后运行 LanPin.exe，不要只复制 EXE。软件不需要管理员权限。
 
 本版变化
+0. 修正 Windows 10 兼容毛玻璃误用全窗口 DWM 边框而呈现纯色的问题；首次显示后重新应用材质，避免窗口初始化覆盖。
 1. 改为 WPF 桌面界面，使用内置 HarmonyOS Sans SC Regular / Bold。
 2. 自绘标题栏，提供拖动、双击最大化、最小化、最大化 / 还原和关闭。
 3. 角色选择、IPv6 / PIN、连接状态、存档卡片分区显示；网络参数可展开。

@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -17,9 +17,10 @@ internal sealed class DesktopBackdrop : IDisposable
     public bool Active { get; private set; }
     public string Status { get; private set; }="窗口创建后启用桌面毛玻璃";
     public DesktopBackdrop(Window window,Action changed)
-    {this.window=window;this.changed=changed;window.SourceInitialized+=SourceReady;}
+    {this.window=window;this.changed=changed;window.SourceInitialized+=SourceReady;window.ContentRendered+=ContentReady;}
     void SourceReady(object? sender,EventArgs args)
     {source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);source?.AddHook(WindowMessage);last=null;changed();}
+    void ContentReady(object? sender,EventArgs args){last=null;changed();}
     IntPtr WindowMessage(IntPtr hwnd,int message,IntPtr wp,IntPtr lp,ref bool handled)
     {
         if(message is 0x031E or 0x031A or 0x001A)
@@ -40,9 +41,12 @@ internal sealed class DesktopBackdrop : IDisposable
             using(var key=Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
                 if(key?.GetValue("EnableTransparency") is int value&&value==0){Status="Windows 透明效果已关闭 · 使用普通背景";return;}
             if(DwmIsCompositionEnabled(out bool composition)!=0||!composition){Status="桌面合成不可用 · 使用普通背景";return;}
-            WindowChrome.GetWindowChrome(window).GlassFrameThickness=new Thickness(-1);
+            bool modern=OperatingSystem.IsWindowsVersionAtLeast(10,0,22621);
+            // Full-client DWM glass obscures the sampled backdrop for the legacy accent API.
+            // Keep just a 1-DIP frame on Windows 10; full extension is for modern DWM backdrops.
+            WindowChrome.GetWindowChrome(window).GlassFrameThickness=modern?new Thickness(-1):new Thickness(0,1,0,0);
             source.CompositionTarget.BackgroundColor=Colors.Transparent;
-            var margins=new Margins{Left=-1,Right=-1,Top=-1,Bottom=-1};
+            var margins=modern?new Margins{Left=-1,Right=-1,Top=-1,Bottom=-1}:new Margins{Top=1};
             if(DwmExtendFrameIntoClientArea(hwnd,ref margins)!=0){Status="桌面材质不可用 · 使用普通背景";return;}
             int dark=1;DwmSetWindowAttribute(hwnd,20,ref dark,sizeof(int));
             // Windows 11 22H2+: documented Desktop Acrylic, not wallpaper-only Mica.
@@ -76,7 +80,7 @@ internal sealed class DesktopBackdrop : IDisposable
     }
     static bool Accent(IntPtr hwnd,int state,Color tint)
     {
-        var policy=new AccentPolicy{State=state,Flags=2,GradientColor=((uint)tint.A<<24)|((uint)tint.B<<16)|((uint)tint.G<<8)|tint.R};
+        var policy=new AccentPolicy{State=state,Flags=0,GradientColor=((uint)tint.A<<24)|((uint)tint.B<<16)|((uint)tint.G<<8)|tint.R};
         int size=Marshal.SizeOf<AccentPolicy>();var memory=Marshal.AllocHGlobal(size);
         try
         {
@@ -86,7 +90,7 @@ internal sealed class DesktopBackdrop : IDisposable
         }
         finally{Marshal.FreeHGlobal(memory);}
     }
-    public void Dispose(){window.SourceInitialized-=SourceReady;if(source?.IsDisposed==false)source.RemoveHook(WindowMessage);source=null;}
+    public void Dispose(){window.SourceInitialized-=SourceReady;window.ContentRendered-=ContentReady;if(source?.IsDisposed==false)source.RemoveHook(WindowMessage);source=null;}
     [StructLayout(LayoutKind.Sequential)] struct AccentPolicy{public int State,Flags;public uint GradientColor;public int AnimationId;}
     [StructLayout(LayoutKind.Sequential)] struct CompositionData{public int Attribute;public IntPtr Data;public nuint Size;}
     [StructLayout(LayoutKind.Sequential)] struct Margins{public int Left,Right,Top,Bottom;}

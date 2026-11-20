@@ -15,7 +15,7 @@
       <TextBlock Text="LanPin" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/><TextBlock Text="NEXT" FontSize="10" Foreground="#A8BEB0" VerticalAlignment="Center" Margin="12,3,0,0"/>
      </StackPanel>
      <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,15,0" VerticalAlignment="Center">
-      <TextBlock Text="v0.2.1 · 实验版" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,20,0"/>
+      <TextBlock Text="v0.2.2 · 实验版" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,20,0"/>
       <Button Style="{StaticResource ChromeButton}" Content="&#xE921;" AutomationProperties.Name="最小化" ToolTip="最小化" Click="MinimizeClick"/>
       <Button x:Name="MaximizeButton" Style="{StaticResource ChromeButton}" Content="&#xE922;" AutomationProperties.Name="最大化或还原" ToolTip="最大化 / 还原" Click="MaximizeClick"/>
       <Button Style="{StaticResource ChromeButton}" Content="&#xE8BB;" AutomationProperties.Name="关闭" ToolTip="关闭" Click="CloseClick" Margin="4,0,0,0"/>
