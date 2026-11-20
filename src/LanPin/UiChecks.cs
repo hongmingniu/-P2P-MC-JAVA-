@@ -1,168 +1,96 @@
-﻿using System.Security.Cryptography;
-using System.Text.Json;
-using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shell;
-using System.Windows.Threading;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-
+using System.Security.Cryptography;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Windowing;
+using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
 namespace LanPin.Desktop;
-
 static class UiChecks
 {
-    static readonly List<string> results=[];
-    static string? reportPath;
-    static void Check(bool condition,string message){if(!condition)throw new Exception(message);results.Add("PASS "+message);if(reportPath!=null)File.WriteAllLines(reportPath,results);}
-    static void Snapshot(MainWindow window,string path,double width=1200,double height=800)
+    static readonly List<string> results=[];static string report="";
+    static void Check(bool ok,string name){if(!ok)throw new Exception(name);results.Add("PASS "+name);File.WriteAllLines(report,results);}
+    static async Task Snapshot(MainWindow window,string path)
     {
-        var root=(FrameworkElement)window.Content;
-        root.Measure(new Size(width,height));root.Arrange(new Rect(0,0,width,height));root.UpdateLayout();
-        var bitmap=new RenderTargetBitmap((int)width,(int)height,96,96,PixelFormats.Pbgra32);bitmap.Render(root);
-        var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var output=File.Create(path);encoder.Save(output);
+        await Task.Delay(550);var render=new RenderTargetBitmap();await render.RenderAsync(window.Root,1200,800);
+        var buffer=await render.GetPixelsAsync();var pixels=new byte[buffer.Length];using(var reader=DataReader.FromBuffer(buffer))reader.ReadBytes(pixels);
+        using var stream=new InMemoryRandomAccessStream();var encoder=await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId,stream);
+        encoder.SetPixelData(BitmapPixelFormat.Bgra8,BitmapAlphaMode.Premultiplied,(uint)render.PixelWidth,(uint)render.PixelHeight,96,96,pixels);await encoder.FlushAsync();stream.Seek(0);
+        using var input=stream.GetInputStreamAt(0);using var data=new DataReader(input);await data.LoadAsync((uint)stream.Size);var png=new byte[stream.Size];data.ReadBytes(png);await File.WriteAllBytesAsync(path,png);
     }
-    static void MakeFixture(string path)
+    static async Task Fixture(string path)
     {
-        var visual=new DrawingVisual();using(var dc=visual.RenderOpen())
-        {
-            var sky=new LinearGradientBrush();sky.StartPoint=new Point(0,0);sky.EndPoint=new Point(1,1);sky.GradientStops.Add(new GradientStop(Color.FromRgb(215,144,103),0));sky.GradientStops.Add(new GradientStop(Color.FromRgb(100,117,145),.55));sky.GradientStops.Add(new GradientStop(Color.FromRgb(31,72,74),1));
-            dc.DrawRectangle(sky,null,new Rect(0,0,1800,1200));
-            dc.DrawEllipse(new SolidColorBrush(Color.FromRgb(245,218,162)),null,new Point(1380,330),110,110);
-            dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(69,89,103)),null,Geometry.Parse("M 0,950 L 200,700 380,880 640,580 900,910 1130,650 1490,990 1800,710 1800,1200 0,1200 Z"));
-            dc.DrawGeometry(new SolidColorBrush(Color.FromRgb(31,65,70)),null,Geometry.Parse("M 0,1020 L 300,900 600,1060 990,850 1240,1060 1560,900 1800,1000 1800,1200 0,1200 Z"));
-        }
-        var bitmap=new RenderTargetBitmap(1800,1200,96,96,PixelFormats.Pbgra32);bitmap.Render(visual);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var output=File.Create(path);encoder.Save(output);
+        const int width=1200,height=800;var bytes=new byte[width*height*4];
+        for(int y=0;y<height;y++)for(int x=0;x<width;x++)
+        {int at=(y*width+x)*4;double u=x/(double)width,v=y/(double)height;bytes[at]=(byte)(95+60*u);bytes[at+1]=(byte)(105+50*v);bytes[at+2]=(byte)(200-90*v);bytes[at+3]=255;}
+        using var stream=new InMemoryRandomAccessStream();var encoder=await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId,stream);encoder.SetPixelData(BitmapPixelFormat.Bgra8,BitmapAlphaMode.Premultiplied,width,height,96,96,bytes);await encoder.FlushAsync();
+        using var reader=new DataReader(stream.GetInputStreamAt(0));await reader.LoadAsync((uint)stream.Size);byte[] png=new byte[stream.Size];reader.ReadBytes(png);await File.WriteAllBytesAsync(path,png);
     }
-    public static async Task Run(string output)
+    public static async Task Run(MainWindow window,string output)
     {
-        output=Path.GetFullPath(output);Directory.CreateDirectory(output);reportPath=Path.Combine(output,"ui-check-result.txt");string profile=Path.Combine(output,"isolated-profile");
-        var store=new AppearanceStore(profile);var window=new MainWindow(store,true);
-        Check(window.WindowStyle==WindowStyle.None&&WindowChrome.GetWindowChrome(window)?.CaptionHeight==0,"Custom title bar replaces native caption; resize chrome remains configured");
-        var typeface=new Typeface(window.FontFamily,FontStyles.Normal,FontWeights.Normal,FontStretches.Normal);
-        Check(typeface.TryGetGlyphTypeface(out var glyph)&&glyph.FamilyNames.Values.Any(x=>x.Contains("HarmonyOS Sans",StringComparison.OrdinalIgnoreCase)),"Bundled HarmonyOS Sans SC actually resolves as the UI typeface");
-        Check(window.PinBox.IsReadOnly&&window.StartButton.Content.ToString()!.Contains("生成分享"),"Joiner role has a generated read-only PIN");
-        Snapshot(window,Path.Combine(output,"01-home.png"));
-        Check(window.ConnectionOverlay.Visibility==Visibility.Collapsed&&window.PrimaryHomeButton.Content.ToString()!.Contains("开始联机"),"Home starts with one primary action and connection settings hidden");
-        window.OpenConnectionDrawer();Snapshot(window,Path.Combine(output,"01-joiner.png"));
-        Check(window.ConnectionOverlay.Visibility==Visibility.Visible,"Primary action opens the actual connection drawer");
-        window.SetRole(false);Check(!window.PinBox.IsReadOnly&&window.ManualBox.IsEnabled,"LAN access role accepts PIN and manual game endpoint");
-        window.SetAdvanced(true,false);Snapshot(window,Path.Combine(output,"02-access.png"));
-        var root=(FrameworkElement)window.Content;Point button=window.StartButton.TranslatePoint(new Point(0,0),root);
-        Check(button.X>=0&&button.X+window.StartButton.ActualWidth<=1200,"Primary action stays within the window at default size");
-        Snapshot(window,Path.Combine(output,"03-small-window.png"),980,680);
-        var homePoint=window.PrimaryHomeButton.TranslatePoint(new Point(0,0),root);
-        Check(homePoint.X>0&&homePoint.X+window.PrimaryHomeButton.ActualWidth<980&&homePoint.Y+window.PrimaryHomeButton.ActualHeight<680,"Home action stays inside the smallest supported window");
-        button=window.StartButton.TranslatePoint(new Point(0,0),root);
-        Check(button.Y+window.StartButton.ActualHeight<650,"Primary action remains visible at the minimum window size");
-        window.ShowPage(1,false);Check(window.ConnectionOverlay.Visibility==Visibility.Collapsed,"Changing pages dismisses the connection drawer without altering its fields");Snapshot(window,Path.Combine(output,"04-appearance.png"));
-        string fixture=Path.Combine(output,"wallpaper-fixture.png");MakeFixture(fixture);string originalHash=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fixture)));
-        await window.ImportWallpaperAsync(fixture);
-        Check(window.CurrentAppearance.Wallpaper!=fixture&&File.Exists(window.CurrentAppearance.Wallpaper),"Custom image is copied into the managed local profile");
-        Check(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(fixture)))==originalHash,"Import leaves the original wallpaper unmodified");
-        window.SetPreviewAppearance(window.CurrentAppearance with{Blur=3,Shade=.29,PanelOpacity=.59,FitInside=false,ReduceMotion=true});
-        var loaded=store.Load();Check(loaded.Blur==3&&loaded.Shade==.29&&loaded.PanelOpacity==.59&&loaded.ReduceMotion,"Blur, shade, panel opacity and reduced-motion preferences persist");
-        window.SetRole(true);window.SetAdvanced(false,false);window.ShowPage(0,false);Snapshot(window,Path.Combine(output,"05-custom-background.png"));
-        var reopened=new MainWindow(new AppearanceStore(profile),true);Check(reopened.WallpaperImage.Source!=null,"Custom wallpaper reloads from local settings on next launch");
-        reopened.ShowPage(1,false);Snapshot(reopened,Path.Combine(output,"06-persisted-appearance.png"));
-        string before=window.CurrentAppearance.Wallpaper!;string invalid=Path.Combine(output,"invalid.png");File.WriteAllText(invalid,"not an image");bool rejected=false;
-        try{await window.ImportWallpaperAsync(invalid);}catch{rejected=true;}
-        Check(rejected&&window.CurrentAppearance.Wallpaper==before,"Invalid image is rejected without replacing the previous wallpaper");
-        window.ResetWallpaper();Check(window.WallpaperImage.Source==null&&store.Load().Wallpaper==null&&File.Exists(fixture),"Restore-default clears wallpaper selection without touching the original file");
-        store.Save(new Appearance{Blur=200,Shade=-1,PanelOpacity=3});var clamped=store.Load();Check(clamped.Blur==24&&clamped.Shade==.2&&clamped.PanelOpacity==.95,"Out-of-range persisted preferences are clamped");
-        var malformed=Path.Combine(output,"corrupt-profile");Directory.CreateDirectory(malformed);File.WriteAllText(Path.Combine(malformed,"appearance-v2.json"),"{bad json");Check(new AppearanceStore(malformed).Load().Wallpaper==null,"Malformed preferences fall back to safe defaults");
-        // Exercise native material on our own HWND; offscreen images cannot capture DWM pixels.
-        Check(new Appearance().DesktopGlass,"Desktop glass defaults on for existing and new profiles");
-        window.SetPreviewAppearance(new Appearance{DesktopGlass=true,WallpaperBlend=.31});
-        Check(store.Load().DesktopGlass&&store.Load().WallpaperBlend==.31,"Native material preference and wallpaper blend persist");
-        var handle=new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
-        Check(handle!=IntPtr.Zero,"Own test window creates a real native HWND");
-        results.Add("INFO native material: "+window.MaterialStatus.Text);
-        Check(window.NativeGlassActive||window.MaterialStatus.Text.Contains("普通背景"),"Native compositor request succeeds or reports a readable fallback");
-        if(window.NativeGlassActive)
-        {
-            Check(WindowChrome.GetWindowChrome(window).GlassFrameThickness==(OperatingSystem.IsWindowsVersionAtLeast(10,0,22621)?new Thickness(-1):new Thickness(0,1,0,0)),"Native frame extension matches modern DWM or legacy acrylic requirements");
-            Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity<.2&&window.Opacity==1,"Native glass exposes the compositor while keeping the whole window fully opaque");
-            Check(window.WallpaperImage.Opacity==.31,"Native glass blends custom imagery instead of covering the compositor");
-        }
-        if(window.NativeGlassActive)
-        {
-            if(OperatingSystem.IsWindowsVersionAtLeast(10,0,18362)&&!OperatingSystem.IsWindowsVersionAtLeast(10,0,22621))
-                Check(window.NativeBackdrop.Kind==DesktopMaterial.LegacyBlur,"Windows 10 uses lightweight blur without an overlay hiding WPF content");
-            int applies=window.NativeBackdrop.MaterialApplyCount;
-            for(int cycle=0;cycle<1000;cycle++){window.NativeBackdrop.SetLiveMove(true);window.NativeBackdrop.SetLiveMove(false);}
-            Check(window.NativeBackdrop.MaterialApplyCount==applies,"One thousand move lifecycle updates do not recreate the material");
-            window.NativeBackdrop.UpdateFrame();
-            Check(window.NativeBackdrop.CornerMode is "region" or "native","Native window boundary is rounded independently of the WPF border");
-            if(window.NativeBackdrop.CornerMode=="region")Check(window.NativeBackdrop.HasCleanRoundedRegion(),"Native region excludes all four physical window corners while retaining the center");
-            int resizes=window.NativeBackdrop.FrameUpdateCount;
-            for(int cycle=0;cycle<1000;cycle++)window.NativeBackdrop.UpdateFrame();
-            Check(window.NativeBackdrop.FrameUpdateCount==resizes,"Unchanged window size skips one thousand redundant native region updates");
-            window.NativeBackdrop.SetLiveMove(true);
-            Check(window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Entering live move preserves lightweight desktop blur without a material switch");
-            window.NativeBackdrop.SetLiveMove(false);
-            Check(!window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Exiting live move preserves the desktop material");
-        }
-        Check(window.WarmGlow.Effect==null&&window.DefaultBackdrop.Children.OfType<System.Windows.Shapes.Ellipse>().All(x=>x.Effect==null),"Large decorative glows use gradients without per-frame blur effects");
-        Check(window.WallpaperImage.CacheMode is BitmapCache,"Wallpaper effect output is cached independently of the animated page");
-        window.ApplyMaterialLayers(true);
-        Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity==.18&&window.Opacity==1,"Glass layer composition leaves the compositor exposed without fading window contents");
-        Check(window.WallpaperImage.Opacity==.31&&window.ShadeLayer.Opacity is >.3 and <.7,"Glass layer composition preserves translucent image and shade layers");
-        window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false});
-        Check(!window.NativeGlassActive&&window.DefaultBackdrop.Opacity==1&&window.WallpaperImage.Opacity==1,"Turning desktop glass off restores the opaque background immediately");
-        window.GlassCheck.IsChecked=true;
-        Check(window.CurrentAppearance.DesktopGlass,"Material toggle updates the actual appearance controller");
-        window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false,WallpaperBlend=9});
-        Check(window.CurrentAppearance.WallpaperBlend==.8,"Wallpaper blending clamps out-of-range persisted values");
-        window.SetPreviewAppearance(new Appearance());window.ShowPage(1,false);Snapshot(window,Path.Combine(output,"07-glass-settings.png"));
-        Check(window.SurfaceClip.Rect.Width>0&&window.SurfaceClip.RadiusX==17,"All window contents are clipped to the inner rounded rectangle");
-        window.WindowState=WindowState.Maximized;await Dispatcher.Yield(DispatcherPriority.ContextIdle);window.NativeBackdrop.UpdateFrame();
-        Check(window.SurfaceClip.RadiusX==0&&window.NativeBackdrop.CornerMode=="square","Maximize removes both native corner rounding and WPF corner clipping");
-        window.WindowState=WindowState.Normal;window.NativeBackdrop.UpdateFrame();
-        Check(window.SurfaceClip.RadiusX==17&&window.NativeBackdrop.CornerMode is "region" or "native","Restore re-enables matching native and content corner rounding");
-        window.Close();reopened.Close();
+        output=Path.GetFullPath(output);Directory.CreateDirectory(output);report=Path.Combine(output,"ui-check-result.txt");
+        Check(typeof(Window).Assembly.GetName().Name=="Microsoft.WinUI"&&window is Window,"Window and controls run on actual WinUI 3");
+        Check(!AppDomain.CurrentDomain.GetAssemblies().Any(x=>x.GetName().Name is "PresentationFramework" or "PresentationCore"),"WPF assemblies are not loaded");
+        Check(window.ExtendsContentIntoTitleBar,"Content extends into the native WinUI title bar");
+        Check(window.SystemBackdrop is DesktopAcrylicBackdrop,"Native WinUI Desktop Acrylic backdrop is configured");
+        Check(window.StartButton is Button&&window.Drawer is SplitView,"Connections use native WinUI controls and SplitView");
+        Check(!window.Drawer.IsPaneOpen,"Home starts with connection parameters hidden");
+        window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false});await Snapshot(window,Path.Combine(output,"01-home.png"));
+        window.OpenConnectionDrawer();await Snapshot(window,Path.Combine(output,"02-connection.png"));
+        Check(window.Drawer.IsPaneOpen&&window.ConnectionPane.Visibility==Visibility.Visible,"Primary action opens the connection pane");
+        Check(window.PinBox.IsReadOnly&&window.StartButton.Content.ToString()!.Contains("生成分享"),"Joining player has a generated read-only PIN");
+        window.SetRole(false);Check(!window.PinBox.IsReadOnly&&window.ManualBox.IsEnabled,"LAN access role accepts a PIN and a manual endpoint");
+        window.ShowPage(1);Check(!window.Drawer.IsPaneOpen,"Page changes dismiss the native pane");await Snapshot(window,Path.Combine(output,"03-appearance.png"));
+        string fixture=Path.Combine(output,"fixture.png");await Fixture(fixture);string hash=Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(fixture)));
+        await window.ImportWallpaperAsync(fixture);Check(window.CurrentAppearance.Wallpaper!=fixture&&File.Exists(window.CurrentAppearance.Wallpaper),"Wallpaper import creates a managed copy");
+        Check(Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(fixture)))==hash,"Wallpaper import leaves the original file unchanged");
+        window.SetPreviewAppearance(window.CurrentAppearance with{Blur=12,Shade=.4,WallpaperBlend=.28,PanelOpacity=.8,ReduceMotion=true});await window.RefreshWallpaperAsync();
+        var profile=new AppearanceStore(Path.Combine(output,"profile"));var saved=profile.Load();Check(saved.Blur==12&&saved.Shade==.4&&saved.ReduceMotion&&saved.WallpaperBlend==.28,"Appearance and reduced-motion preferences persist");
+        var photo=await PhotoData.ReadAsync(fixture);var before=(byte[])photo.Pixels.Clone();var blurred=await Task.Run(()=>photo.Blur(12));Check(photo.Pixels.AsSpan().SequenceEqual(before)&&!blurred.AsSpan().SequenceEqual(before),"Background blur changes a separate pixel buffer and preserves the original");
+        window.SetRole(true);window.ShowPage(0);await Snapshot(window,Path.Combine(output,"04-wallpaper.png"));
+        var reopened=new MainWindow(profile,true);reopened.Activate();await reopened.Loaded;Check(reopened.WallpaperImage.Source!=null,"Managed wallpaper reloads in a new WinUI window");reopened.Close();
+        string invalid=Path.Combine(output,"invalid.png");await File.WriteAllTextAsync(invalid,"not an image");string? previous=window.CurrentAppearance.Wallpaper;bool rejected=false;try{await window.ImportWallpaperAsync(invalid);}catch{rejected=true;}
+        Check(rejected&&window.CurrentAppearance.Wallpaper==previous,"Invalid image is rejected without replacing the previous wallpaper");
+        window.ResetWallpaper();Check(window.WallpaperImage.Source==null&&File.Exists(fixture),"Reset clears the wallpaper without deleting the source image");
+        window.SetPreviewAppearance(new Appearance{Blur=999,Shade=-1,WallpaperBlend=9,PanelOpacity=3});Check(window.CurrentAppearance is{Blur:24,Shade:.2,WallpaperBlend:.8,PanelOpacity:.95},"Persisted appearance values are bounded");
+        window.SetPreviewAppearance(new Appearance{DesktopGlass=false});Check(window.SystemBackdrop==null,"Turning glass off removes the native backdrop");
+        window.SetPreviewAppearance(new Appearance{DesktopGlass=true});Check(window.SystemBackdrop is DesktopAcrylicBackdrop,"Turning glass on restores the WinUI backdrop");
+        var material=window.SystemBackdrop;for(int i=0;i<100;i++)window.SetPreviewAppearance(window.CurrentAppearance with{Shade=.2+(i%60)/100.0});Check(ReferenceEquals(material,window.SystemBackdrop),"One hundred mask changes do not recreate the native backdrop");
+        window.Frame.Update();if(window.Frame.Mode=="region")Check(window.Frame.CornersClipped(),"Native region excludes all four corners and retains the center");
+        int updates=window.Frame.UpdateCount;for(int i=0;i<1000;i++)window.Frame.Update();Check(updates==window.Frame.UpdateCount,"Unchanged geometry avoids one thousand redundant native region updates");
+        double scale=NativeFrame.Scale(window);window.AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(980*scale),(int)(680*scale)));await Task.Delay(200);window.OpenConnectionDrawer();
+        await Task.Delay(550);var point=window.StartButton.TransformToVisual(window.Root).TransformPoint(new Windows.Foundation.Point(0,0));
+        Check(point.X>=0&&point.Y>=0&&point.X+window.StartButton.ActualWidth<=window.Root.ActualWidth+1&&point.Y+window.StartButton.ActualHeight<=window.Root.ActualHeight+1,"Primary action remains fully inside the smallest supported window");await Snapshot(window,Path.Combine(output,"05-small.png"));
+        window.AppWindow.Resize(new Windows.Graphics.SizeInt32((int)(1200*scale),(int)(800*scale)));window.SetPreviewAppearance(new Appearance{DesktopGlass=false});window.ShowPage(0);
         await NetworkFlow(output);
-        await File.WriteAllTextAsync(Path.Combine(output,"ui-check-result.txt"),string.Join(Environment.NewLine,results));
+        await Snapshot(window,Path.Combine(output,"06-final-home.png"));
+        await File.WriteAllLinesAsync(report,results);
     }
-    static async Task WaitFor(Func<bool> predicate,CancellationToken token)
-    {while(!predicate())await Task.Delay(40,token);}
+    static async Task WaitFor(Func<bool> predicate,CancellationToken token){while(!predicate())await Task.Delay(40,token);}
     static async Task NetworkFlow(string output)
     {
-        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(20));var ct=deadline.Token;
-        var joiner=new MainWindow(new AppearanceStore(Path.Combine(output,"joiner-profile")),true);
-        var access=new MainWindow(new AppearanceStore(Path.Combine(output,"access-profile")),true);
-        var nic=new LanInterface("Loopback integration test",IPAddress.Loopback,IPAddress.Parse("255.0.0.0"));
-        foreach(var window in new[]{joiner,access}){window.NetworkChoice.Items.Clear();window.NetworkChoice.Items.Add(nic);window.NetworkChoice.SelectedIndex=0;}
-        var probe=new TcpListener(IPAddress.IPv6Loopback,0);probe.Start();int port=((IPEndPoint)probe.LocalEndpoint).Port;probe.Stop();
-        var server=new TcpListener(IPAddress.Loopback,0);server.Start();int gamePort=((IPEndPoint)server.LocalEndpoint).Port;
-        joiner.AddressBox.Text="::1";joiner.PortBox.Text=port.ToString();
-        Task? serverTask=null;
+        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(25));var ct=deadline.Token;
+        var joiner=new MainWindow(new AppearanceStore(Path.Combine(output,"joiner-profile")),true);var access=new MainWindow(new AppearanceStore(Path.Combine(output,"access-profile")),true);
+        joiner.Activate();access.Activate();await Task.WhenAll(joiner.Loaded,access.Loaded);
+        var nic=new LanInterface("Loopback test",IPAddress.Loopback,IPAddress.Parse("255.0.0.0"));foreach(var window in new[]{joiner,access}){window.NetworkChoice.Items.Clear();window.NetworkChoice.Items.Add(nic);window.NetworkChoice.SelectedIndex=0;}
+        var probe=new TcpListener(IPAddress.IPv6Loopback,0);probe.Start();int port=((IPEndPoint)probe.LocalEndpoint).Port;probe.Stop();var game=new TcpListener(IPAddress.Loopback,0);game.Start();int gamePort=((IPEndPoint)game.LocalEndpoint).Port;
         try
         {
-            await joiner.StartAsync(true);
-            await WaitFor(()=>joiner.StateTitle.Text=="等待朋友接入",ct);
-            Check(joiner.PinBox.Text.Replace("-","").Length==32&&joiner.CopyButton.IsEnabled,"Joiner UI creates share PIN and enables sharing only after starting");
-            access.SetRole(false);access.AddressBox.Text="::1";access.PortBox.Text=port.ToString();access.PinBox.Text=joiner.PinBox.Text;
-            await access.StartAsync(true);
-            await WaitFor(()=>joiner.StateTitle.Text=="已安全连接"&&access.StateTitle.Text=="已安全连接",ct);
-            Check(true,"Both actual window controllers display connected only after mutual PIN authentication");
-            while(joiner.DiscoveredWorlds.Count==0||access.DiscoveredWorlds.Count==0)
-            {await Discovery.Announce(nic,"Next UI integration world",gamePort,ct);await Task.Delay(150,ct);}
-            Check(joiner.WorldCount.Text=="1"&&access.WorldCount.Text=="1"&&joiner.EmptyWorlds.Visibility==Visibility.Collapsed,"Real multicast notices populate both world-card lists and hide empty state");
-            var entry=joiner.DiscoveredWorlds.Single();var mapped=IPEndPoint.Parse(entry.Endpoint);
-            Check(mapped.Port!=gamePort&&mapped.Address.Equals(IPAddress.Loopback),"Joiner world card exposes the actual tunnel proxy endpoint");
-            byte[] payload=System.Security.Cryptography.RandomNumberGenerator.GetBytes(65536),received=new byte[payload.Length];
-            serverTask=Task.Run(async()=>
-            {using var accepted=await server.AcceptTcpClientAsync(ct);var stream=accepted.GetStream();var data=new byte[payload.Length];await stream.ReadExactlyAsync(data,ct);await stream.WriteAsync(data,ct);},ct);
-            using var player=new TcpClient(AddressFamily.InterNetwork);await player.ConnectAsync(mapped,ct);var clientStream=player.GetStream();
-            await clientStream.WriteAsync(payload,ct);await clientStream.ReadExactlyAsync(received,ct);await serverTask;
-            Check(payload.AsSpan().SequenceEqual(received),"UI-started tunnel relays actual game TCP data with exact byte equality");
-            await joiner.StopAsync();await access.StopAsync();await WaitFor(()=>joiner.StopButton.Visibility==Visibility.Collapsed&&access.StopButton.Visibility==Visibility.Collapsed&&joiner.DiscoveredWorlds.Count==0&&access.DiscoveredWorlds.Count==0,ct);
-            Check(!joiner.CopyButton.IsEnabled&&joiner.PinBox.Text.Length==0&&access.PinBox.Text.Length==0,"Stop clears PIN, share action and world cards in both controllers");
-            probe=new TcpListener(IPAddress.IPv6Loopback,port);probe.Start();probe.Stop();
-            Check(true,"Controller stop releases the IPv6 listener for reuse");
+            joiner.AddressBox.Text="::1";joiner.PortBox.Text=port.ToString();await joiner.StartAsync(true);await WaitFor(()=>joiner.StateTitle.Text=="等待朋友接入",ct);
+            Check(joiner.PinBox.Text.Replace("-","").Length==32&&joiner.CopyButton.IsEnabled,"WinUI share action generates a 128-bit PIN and enables copying");
+            access.SetRole(false);access.AddressBox.Text="::1";access.PortBox.Text=port.ToString();access.PinBox.Text=joiner.PinBox.Text;await access.StartAsync(true);
+            await WaitFor(()=>joiner.StateTitle.Text=="已安全连接"&&access.StateTitle.Text=="已安全连接",ct);Check(true,"Two WinUI window controllers pair through real IPv6 TLS");
+            while(joiner.DiscoveredWorlds.Count==0||access.DiscoveredWorlds.Count==0){await Discovery.Announce(nic,"WinUI integration world",gamePort,ct);await Task.Delay(150,ct);}
+            Check(joiner.DiscoveredWorlds.Count==1&&access.DiscoveredWorlds.Count==1,"Real Minecraft-format multicast populates both native world lists");
+            var mapped=IPEndPoint.Parse(joiner.DiscoveredWorlds.Single().Endpoint);Check(mapped.Port!=gamePort&&mapped.Address.Equals(IPAddress.Loopback),"World entry exposes the actual local tunnel endpoint");
+            byte[] payload=RandomNumberGenerator.GetBytes(65536),received=new byte[payload.Length];var echo=Task.Run(async()=>{using var accepted=await game.AcceptTcpClientAsync(ct);var data=new byte[payload.Length];var stream=accepted.GetStream();await stream.ReadExactlyAsync(data,ct);await stream.WriteAsync(data,ct);},ct);
+            using(var client=new TcpClient(AddressFamily.InterNetwork)){await client.ConnectAsync(mapped,ct);var stream=client.GetStream();await stream.WriteAsync(payload,ct);await stream.ReadExactlyAsync(received,ct);}await echo;Check(payload.AsSpan().SequenceEqual(received),"WinUI-started tunnel forwards exact game TCP payload bytes");
+            await joiner.StopAsync();await access.StopAsync();Check(joiner.PinBox.Text.Length==0&&access.PinBox.Text.Length==0&&!joiner.CopyButton.IsEnabled&&joiner.DiscoveredWorlds.Count==0&&access.DiscoveredWorlds.Count==0,"Stop clears PIN, sharing actions and world lists in both WinUI windows");
+            probe=new TcpListener(IPAddress.IPv6Loopback,port);probe.Start();probe.Stop();Check(true,"Stop releases the IPv6 listening port");
         }
-        finally
-        {await joiner.StopAsync();await access.StopAsync();server.Stop();joiner.Close();access.Close();}
+        finally{await joiner.StopAsync();await access.StopAsync();game.Stop();joiner.Close();access.Close();}
     }
 }

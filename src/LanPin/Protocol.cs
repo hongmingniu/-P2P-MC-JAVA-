@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
@@ -29,7 +29,7 @@ static class Protocol
         using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddDays(1));
         // Import into a temporary Windows key container for Schannel compatibility on Windows 10.
         var pfx = generated.Export(X509ContentType.Pfx);
-        try { return new X509Certificate2(pfx, (string?)null, X509KeyStorageFlags.UserKeySet); }
+        try { return X509CertificateLoader.LoadPkcs12(pfx, null, X509KeyStorageFlags.UserKeySet); }
         finally { CryptographicOperations.ZeroMemory(pfx); }
     }
     static byte[] Proof(byte[] pin, byte role, byte[] binding, byte[] a, byte[] b) =>
