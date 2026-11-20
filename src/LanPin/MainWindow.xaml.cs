@@ -95,9 +95,21 @@ public partial class MainWindow : Window
     void MaximizeClick(object sender,RoutedEventArgs e)=>ToggleMaximize();
     void ToggleMaximize(){if(WindowState==WindowState.Maximized)SystemCommands.RestoreWindow(this);else SystemCommands.MaximizeWindow(this);}
     void CloseClick(object sender,RoutedEventArgs e)=>Close();
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if(e.Property==WindowStateProperty&&MaximizeButton!=null)WindowStateChanged(this,EventArgs.Empty);
+    }
     void WindowStateChanged(object? sender,EventArgs e)
-    {if(MaximizeButton!=null){MaximizeButton.Content=WindowState==WindowState.Maximized?"\uE923":"\uE922";WindowFrame.CornerRadius=new CornerRadius(WindowState==WindowState.Maximized?0:18);}}
+    {if(MaximizeButton!=null){MaximizeButton.Content=WindowState==WindowState.Maximized?"\uE923":"\uE922";WindowFrame.CornerRadius=new CornerRadius(WindowState==WindowState.Maximized?0:18);UpdateSurfaceClip();}}
 
+    void SurfaceSizeChanged(object sender,SizeChangedEventArgs e)=>UpdateSurfaceClip();
+    void UpdateSurfaceClip()
+    {
+        if(SurfaceClip==null||SurfaceRoot==null)return;
+        SurfaceClip.Rect=new Rect(0,0,Math.Max(0,SurfaceRoot.ActualWidth),Math.Max(0,SurfaceRoot.ActualHeight));
+        SurfaceClip.RadiusX=SurfaceClip.RadiusY=WindowState==WindowState.Maximized?0:17;
+    }
     internal void SetRole(bool isJoiner)
     {
         if(running)return;joiner=isJoiner;

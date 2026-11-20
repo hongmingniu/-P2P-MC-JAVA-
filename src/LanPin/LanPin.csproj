@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
     <AssemblyName>LanPin</AssemblyName><RootNamespace>LanPin</RootNamespace>
-    <Version>0.2.4</Version><PlatformTarget>x64</PlatformTarget><RollForward>LatestMajor</RollForward>
+    <Version>0.2.5</Version><PlatformTarget>x64</PlatformTarget><RollForward>LatestMajor</RollForward>
     <ApplicationIcon>Assets\LanPin.ico</ApplicationIcon><ApplicationManifest>app.manifest</ApplicationManifest>
     <DebugType>none</DebugType><IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
@@ -13,8 +13,5 @@
     <None Update="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Licenses\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
-  <Target Name="BuildDesktopGlass" BeforeTargets="BeforeBuild" Inputs="$(MSBuildProjectDirectory)\Native\DesktopGlass.cpp;$(MSBuildProjectDirectory)\Native\build.cmd" Outputs="$(MSBuildProjectDirectory)\Native\build\LanPin.Backdrop.dll">
-    <Exec Command="cmd /d /c &quot;$(MSBuildProjectDirectory)\Native\build.cmd&quot;" />
-  </Target>
-  <ItemGroup><None Include="Native\build\LanPin.Backdrop.dll" Link="LanPin.Backdrop.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+
 </Project>

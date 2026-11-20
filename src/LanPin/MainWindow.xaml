@@ -2,7 +2,7 @@
  Title="LanPin Next · Minecraft Java 联机" Icon="Assets/LanPin.ico" Width="1260" Height="860" MinWidth="1060" MinHeight="760" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize" Background="#10251D" Foreground="{DynamicResource Ink}" FontFamily="pack://application:,,,/LanPin;component/Assets/#HarmonyOS Sans SC" FontSize="13" AllowDrop="True" DragOver="WindowDragOver" Drop="WindowDrop" Closing="WindowClosing" StateChanged="WindowStateChanged">
  <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="18" UseAeroCaptionButtons="False"/></shell:WindowChrome.WindowChrome>
  <Border x:Name="WindowFrame" CornerRadius="18" BorderBrush="#4C9AB19F" BorderThickness="1">
-  <Grid ClipToBounds="True">
+  <Grid x:Name="SurfaceRoot" ClipToBounds="True" SizeChanged="SurfaceSizeChanged"><Grid.Clip><RectangleGeometry x:Name="SurfaceClip" RadiusX="17" RadiusY="17"/></Grid.Clip>
    <Grid x:Name="DefaultBackdrop"><Grid.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop x:Name="BaseA" Color="#213B32" Offset="0"/><GradientStop x:Name="BaseB" Color="#10251E" Offset="1"/></LinearGradientBrush></Grid.Background><Ellipse Width="850" Height="760" Margin="-360,-260,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" ><Ellipse.Fill><RadialGradientBrush><GradientStop Color="#80597E62" Offset="0"/><GradientStop Color="#00597E62" Offset="1"/></RadialGradientBrush></Ellipse.Fill></Ellipse><Ellipse x:Name="WarmGlow" Width="700" Height="650" Margin="0,0,-280,-250" HorizontalAlignment="Right" VerticalAlignment="Bottom" ><Ellipse.Fill><RadialGradientBrush><GradientStop x:Name="GlowStop" Color="#727E604E" Offset="0"/><GradientStop Color="Transparent" Offset="1"/></RadialGradientBrush></Ellipse.Fill></Ellipse></Grid>
    <Image x:Name="WallpaperImage" Stretch="UniformToFill" IsHitTestVisible="False"><Image.CacheMode><BitmapCache/></Image.CacheMode><Image.Effect><BlurEffect x:Name="WallpaperBlur" Radius="7"/></Image.Effect></Image>
    <Rectangle x:Name="ShadeLayer" Fill="#07150E" Opacity="0.45" IsHitTestVisible="False"/>
@@ -15,7 +15,7 @@
       <TextBlock Text="LanPin" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/><TextBlock Text="NEXT" FontSize="10" Foreground="#A8BEB0" VerticalAlignment="Center" Margin="12,3,0,0"/>
      </StackPanel>
      <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,15,0" VerticalAlignment="Center">
-      <TextBlock Text="v0.2.4 · 实验版" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,20,0"/>
+      <TextBlock Text="v0.2.5 · 实验版" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,20,0"/>
       <Button Style="{StaticResource ChromeButton}" Content="&#xE921;" AutomationProperties.Name="最小化" ToolTip="最小化" Click="MinimizeClick"/>
       <Button x:Name="MaximizeButton" Style="{StaticResource ChromeButton}" Content="&#xE922;" AutomationProperties.Name="最大化或还原" ToolTip="最大化 / 还原" Click="MaximizeClick"/>
       <Button Style="{StaticResource ChromeButton}" Content="&#xE8BB;" AutomationProperties.Name="关闭" ToolTip="关闭" Click="CloseClick" Margin="4,0,0,0"/>

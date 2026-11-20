@@ -1,12 +1,12 @@
 # LanPin
 
-当前源码：**v0.2.4 预发布版 — 独立合成实验**。
+当前源码：**v0.2.5 预发布版 — WPF 渲染与圆角修正**。
 
 面向 Minecraft Java 的 Windows 局域网发现与 IPv6 点对点联机工具。
 
 ## 下载
 
-[v0.2.4 Release](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.4) · [所有版本](https://github.com/hongmingniu/LanPin/releases)
+[v0.2.5 Release](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.5) · [所有版本](https://github.com/hongmingniu/LanPin/releases)
 
 完整解压对应版本的 Windows 程序包后运行 LanPin.exe，不要只复制 EXE。
 v0.2.x / v0.3.0 为 WPF 版本，需要 .NET Windows Desktop Runtime（建议 .NET 10 x64）；v0.4.0 / v0.5.0 为 WinUI 3 x64，程序包随附 .NET 10 和 WinUI 运行文件。
@@ -54,6 +54,7 @@ Minecraft Java 1.21.11 的真实客户端验证来自此前同机双实例测试
 | [v0.2.1](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.1) | WPF 桌面玻璃初版 |
 | [v0.2.2](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.2) | WPF 玻璃兼容修正 |
 | [v0.2.4](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.4) | 独立合成实验 |
+| [v0.2.5](https://github.com/hongmingniu/LanPin/releases/tag/v0.2.5) | WPF 渲染与圆角修正 |
 
 v0.2.4 存在内容遮挡的严重显示回归，仅供历史研究；v0.4.0 的主题、动效和玻璃观感尚不完整。
 本仓库 `downloads` 和 `docs` 中保留的 v0.1.1 程序及 PDF 为旧版资料，网络角色与条件仍可参考，界面以当前版本为准。

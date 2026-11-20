@@ -83,15 +83,18 @@ static class UiChecks
         if(window.NativeGlassActive)
         {
             if(OperatingSystem.IsWindowsVersionAtLeast(10,0,18362)&&!OperatingSystem.IsWindowsVersionAtLeast(10,0,22621))
-                Check(window.NativeBackdrop.Kind==DesktopMaterial.HostComposition,"Windows 10 uses the independent host-backdrop composition layer");
+                Check(window.NativeBackdrop.Kind==DesktopMaterial.LegacyBlur,"Windows 10 uses lightweight blur without an overlay hiding WPF content");
             int applies=window.NativeBackdrop.MaterialApplyCount;
             for(int cycle=0;cycle<1000;cycle++){window.NativeBackdrop.SetLiveMove(true);window.NativeBackdrop.SetLiveMove(false);}
             Check(window.NativeBackdrop.MaterialApplyCount==applies,"One thousand move lifecycle updates do not recreate the material");
-            int resizes=window.NativeBackdrop.HostResizeCount;
-            for(int cycle=0;cycle<1000;cycle++)window.NativeBackdrop.UpdateHostSize();
-            Check(window.NativeBackdrop.HostResizeCount==resizes,"Unchanged client size skips one thousand redundant composition updates");
+            window.NativeBackdrop.UpdateFrame();
+            Check(window.NativeBackdrop.CornerMode is "region" or "native","Native window boundary is rounded independently of the WPF border");
+            if(window.NativeBackdrop.CornerMode=="region")Check(window.NativeBackdrop.HasCleanRoundedRegion(),"Native region excludes all four physical window corners while retaining the center");
+            int resizes=window.NativeBackdrop.FrameUpdateCount;
+            for(int cycle=0;cycle<1000;cycle++)window.NativeBackdrop.UpdateFrame();
+            Check(window.NativeBackdrop.FrameUpdateCount==resizes,"Unchanged window size skips one thousand redundant native region updates");
             window.NativeBackdrop.SetLiveMove(true);
-            Check(window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Entering live move keeps the independent desktop layer active");
+            Check(window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Entering live move preserves lightweight desktop blur without a material switch");
             window.NativeBackdrop.SetLiveMove(false);
             Check(!window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Exiting live move preserves the desktop material");
         }
@@ -107,6 +110,11 @@ static class UiChecks
         window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false,WallpaperBlend=9});
         Check(window.CurrentAppearance.WallpaperBlend==.8,"Wallpaper blending clamps out-of-range persisted values");
         window.SetPreviewAppearance(new Appearance());window.ShowPage(1,false);Snapshot(window,Path.Combine(output,"07-glass-settings.png"));
+        Check(window.SurfaceClip.Rect.Width>0&&window.SurfaceClip.RadiusX==17,"All window contents are clipped to the inner rounded rectangle");
+        window.WindowState=WindowState.Maximized;await Dispatcher.Yield(DispatcherPriority.ContextIdle);window.NativeBackdrop.UpdateFrame();
+        Check(window.SurfaceClip.RadiusX==0&&window.NativeBackdrop.CornerMode=="square","Maximize removes both native corner rounding and WPF corner clipping");
+        window.WindowState=WindowState.Normal;window.NativeBackdrop.UpdateFrame();
+        Check(window.SurfaceClip.RadiusX==17&&window.NativeBackdrop.CornerMode is "region" or "native","Restore re-enables matching native and content corner rounding");
         window.Close();reopened.Close();
         await NetworkFlow(output);
         await File.WriteAllTextAsync(Path.Combine(output,"ui-check-result.txt"),string.Join(Environment.NewLine,results));
