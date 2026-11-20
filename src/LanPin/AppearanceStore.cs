@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Windows.Media.Imaging;
 
 namespace LanPin.Desktop;
@@ -9,9 +9,11 @@ public sealed record Appearance
     public double Blur { get; init; } = 7;
     public double Shade { get; init; } = .45;
     public double PanelOpacity { get; init; } = .73;
+    public bool DesktopGlass { get; init; } = true;
+    public double WallpaperBlend { get; init; } = .22;
     public bool FitInside { get; init; }
     public bool ReduceMotion { get; init; }
-    public Appearance Validated() => this with { Blur=Math.Clamp(Blur,0,24),Shade=Math.Clamp(Shade,.2,.8),PanelOpacity=Math.Clamp(PanelOpacity,.4,.95),Palette=Palette is "Dusk" or "Slate" ? Palette : "Forest" };
+    public Appearance Validated() => this with { Blur=Math.Clamp(Blur,0,24),WallpaperBlend=Math.Clamp(WallpaperBlend,0,.8),Shade=Math.Clamp(Shade,.2,.8),PanelOpacity=Math.Clamp(PanelOpacity,.4,.95),Palette=Palette is "Dusk" or "Slate" ? Palette : "Forest" };
 }
 public sealed class AppearanceStore
 {

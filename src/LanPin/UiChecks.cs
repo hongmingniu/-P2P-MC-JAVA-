@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
@@ -66,6 +66,29 @@ static class UiChecks
         window.ResetWallpaper();Check(window.WallpaperImage.Source==null&&store.Load().Wallpaper==null&&File.Exists(fixture),"Restore-default clears wallpaper selection without touching the original file");
         store.Save(new Appearance{Blur=200,Shade=-1,PanelOpacity=3});var clamped=store.Load();Check(clamped.Blur==24&&clamped.Shade==.2&&clamped.PanelOpacity==.95,"Out-of-range persisted preferences are clamped");
         var malformed=Path.Combine(output,"corrupt-profile");Directory.CreateDirectory(malformed);File.WriteAllText(Path.Combine(malformed,"appearance-v2.json"),"{bad json");Check(new AppearanceStore(malformed).Load().Wallpaper==null,"Malformed preferences fall back to safe defaults");
+        // Exercise native material on our own HWND; offscreen images cannot capture DWM pixels.
+        Check(new Appearance().DesktopGlass,"Desktop glass defaults on for existing and new profiles");
+        window.SetPreviewAppearance(new Appearance{DesktopGlass=true,WallpaperBlend=.31});
+        Check(store.Load().DesktopGlass&&store.Load().WallpaperBlend==.31,"Native material preference and wallpaper blend persist");
+        var handle=new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        Check(handle!=IntPtr.Zero,"Own test window creates a real native HWND");
+        results.Add("INFO native material: "+window.MaterialStatus.Text);
+        Check(window.NativeGlassActive||window.MaterialStatus.Text.Contains("普通背景"),"Native compositor request succeeds or reports a readable fallback");
+        if(window.NativeGlassActive)
+        {
+            Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity<.2&&window.Opacity==1,"Native glass exposes the compositor while keeping the whole window fully opaque");
+            Check(window.WallpaperImage.Opacity==.31,"Native glass blends custom imagery instead of covering the compositor");
+        }
+        window.ApplyMaterialLayers(true);
+        Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity==.10&&window.Opacity==1,"Glass layer composition leaves the compositor exposed without fading window contents");
+        Check(window.WallpaperImage.Opacity==.31&&window.ShadeLayer.Opacity<.2,"Glass layer composition preserves translucent image and shade layers");
+        window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false});
+        Check(!window.NativeGlassActive&&window.DefaultBackdrop.Opacity==1&&window.WallpaperImage.Opacity==1,"Turning desktop glass off restores the opaque background immediately");
+        window.GlassCheck.IsChecked=true;
+        Check(window.CurrentAppearance.DesktopGlass,"Material toggle updates the actual appearance controller");
+        window.SetPreviewAppearance(window.CurrentAppearance with{DesktopGlass=false,WallpaperBlend=9});
+        Check(window.CurrentAppearance.WallpaperBlend==.8,"Wallpaper blending clamps out-of-range persisted values");
+        window.SetPreviewAppearance(new Appearance());window.ShowPage(1,false);Snapshot(window,Path.Combine(output,"07-glass-settings.png"));
         window.Close();reopened.Close();
         await NetworkFlow(output);
         await File.WriteAllTextAsync(Path.Combine(output,"ui-check-result.txt"),string.Join(Environment.NewLine,results));

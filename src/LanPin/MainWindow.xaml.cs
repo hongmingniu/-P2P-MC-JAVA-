@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Net;
@@ -26,6 +26,7 @@ public sealed class WorldItem
 public partial class MainWindow : Window
 {
     readonly AppearanceStore store;
+    readonly DesktopBackdrop backdrop;
     readonly bool preview;
     readonly ObservableCollection<WorldItem> worlds=[];
     readonly DispatcherTimer saveTimer=new(){Interval=TimeSpan.FromMilliseconds(350)};
@@ -42,20 +43,20 @@ public partial class MainWindow : Window
     internal MainWindow(AppearanceStore settings,bool previewMode)
     {
         store=settings;preview=previewMode;appearance=store.Load();
-        InitializeComponent();WorldList.ItemsSource=worlds;
+        InitializeComponent();backdrop=new DesktopBackdrop(this,ApplyAppearance);WorldList.ItemsSource=worlds;
         if(!preview){Width=Math.Max(MinWidth,Math.Min(Width,SystemParameters.WorkArea.Width-28));Height=Math.Max(MinHeight,Math.Min(Height,SystemParameters.WorkArea.Height-28));}
         saveTimer.Tick+=(_,_)=>{saveTimer.Stop();SaveAppearance();};
         toastTimer.Tick+=(_,_)=>{toastTimer.Stop();Toast.Visibility=Visibility.Collapsed;};
         worldTimer.Tick+=(_,_)=>{foreach(var item in worlds.Where(x=>DateTime.UtcNow-x.Seen>TimeSpan.FromSeconds(20)).ToArray())worlds.Remove(item);UpdateWorldCount();};worldTimer.Start();
         BlurSlider.Value=appearance.Blur;ShadeSlider.Value=appearance.Shade;PanelSlider.Value=appearance.PanelOpacity;
-        FitCheck.IsChecked=appearance.FitInside;MotionCheck.IsChecked=appearance.ReduceMotion;
+        GlassCheck.IsChecked=appearance.DesktopGlass;BlendSlider.Value=appearance.WallpaperBlend;FitCheck.IsChecked=appearance.FitInside;MotionCheck.IsChecked=appearance.ReduceMotion;
         if(appearance.Wallpaper is { } path)
         {
             try {WallpaperImage.Source=AppearanceStore.ReadImage(path);displayImageName="已保存的自定义背景";}
             catch {appearance=appearance with{Wallpaper=null};}
         }
         ApplyAppearance();RefreshNetworks();SetRole(true);ShowPage(0,false);ready=true;
-        Closed+=(_,_)=>{windowClosed=true;saveTimer.Stop();toastTimer.Stop();worldTimer.Stop();};
+        Closed+=(_,_)=>{windowClosed=true;backdrop.Dispose();saveTimer.Stop();toastTimer.Stop();worldTimer.Stop();};
     }
     void Ui(Action action)
     {
@@ -230,13 +231,27 @@ public partial class MainWindow : Window
         var (a,b,glow)=appearance.Palette switch
         {"Dusk"=>("#6E5249","#282E2D","#B78D65"),"Slate"=>("#43586A","#1C2C3D","#679B9F"),_=>("#213B32","#10251E","#7E604E")};
         BaseA.Color=(Color)ColorConverter.ConvertFromString(a);BaseB.Color=(Color)ColorConverter.ConvertFromString(b);WarmGlow.Fill=new SolidColorBrush((Color)ColorConverter.ConvertFromString(glow)){Opacity=.45};
-        WallpaperBlur.Radius=appearance.Blur;ShadeLayer.Opacity=appearance.Shade;WallpaperImage.Stretch=appearance.FitInside?Stretch.Uniform:Stretch.UniformToFill;
+        var tint=(Color)ColorConverter.ConvertFromString(b);tint.A=(byte)(45+appearance.Shade*110);
+        backdrop.Apply(appearance.DesktopGlass,tint);
+        ApplyMaterialLayers(backdrop.Active);
+        MaterialStatus.Text=backdrop.Status;
+        BlendSlider.IsEnabled=appearance.DesktopGlass;
+        BlendValue.Text=$"{appearance.WallpaperBlend:P0}";
+        WallpaperBlur.Radius=appearance.Blur;WallpaperImage.Stretch=appearance.FitInside?Stretch.Uniform:Stretch.UniformToFill;
         Resources["Glass"]=new SolidColorBrush(Color.FromArgb((byte)Math.Round(appearance.PanelOpacity*255),24,48,39));
         WallpaperName.Text=appearance.Wallpaper==null?"当前：默认渐变":"当前："+(displayImageName??"已保存的自定义背景");
         BlurValue.Text=$"{appearance.Blur:0}";ShadeValue.Text=$"{appearance.Shade:P0}";PanelValue.Text=$"{appearance.PanelOpacity:P0}";
     }
+    internal bool NativeGlassActive=>backdrop.Active;
+    internal void ApplyMaterialLayers(bool active)
+    {
+        Background=active?Brushes.Transparent:new SolidColorBrush(Color.FromRgb(16,37,29));
+        DefaultBackdrop.Opacity=active?.10:1;
+        ShadeLayer.Opacity=active?appearance.Shade*.3:appearance.Shade;
+        WallpaperImage.Opacity=active?appearance.WallpaperBlend:1;
+    }
     void ReadAppearanceControls()
-    {appearance=appearance with{Blur=BlurSlider.Value,Shade=ShadeSlider.Value,PanelOpacity=PanelSlider.Value,FitInside=FitCheck.IsChecked==true,ReduceMotion=MotionCheck.IsChecked==true};ApplyAppearance();saveTimer.Stop();saveTimer.Start();}
+    {appearance=appearance with{DesktopGlass=GlassCheck.IsChecked==true,WallpaperBlend=BlendSlider.Value,Blur=BlurSlider.Value,Shade=ShadeSlider.Value,PanelOpacity=PanelSlider.Value,FitInside=FitCheck.IsChecked==true,ReduceMotion=MotionCheck.IsChecked==true};ApplyAppearance();saveTimer.Stop();saveTimer.Start();}
     void AppearanceSliderChanged(object sender,RoutedPropertyChangedEventArgs<double> e){if(ready)ReadAppearanceControls();}
     void AppearanceCheckChanged(object sender,RoutedEventArgs e){if(ready)ReadAppearanceControls();}
     void SaveAppearance(){try{store.Save(appearance);}catch{ToastMessage("外观设置暂时无法保存，请检查本机数据目录的访问权限。");}}
@@ -269,7 +284,7 @@ public partial class MainWindow : Window
     internal void SetPreviewAppearance(Appearance value)
     {
         bool wasReady=ready;ready=false;
-        appearance=value.Validated();BlurSlider.Value=appearance.Blur;ShadeSlider.Value=appearance.Shade;PanelSlider.Value=appearance.PanelOpacity;FitCheck.IsChecked=appearance.FitInside;MotionCheck.IsChecked=appearance.ReduceMotion;
+        appearance=value.Validated();BlurSlider.Value=appearance.Blur;ShadeSlider.Value=appearance.Shade;PanelSlider.Value=appearance.PanelOpacity;GlassCheck.IsChecked=appearance.DesktopGlass;BlendSlider.Value=appearance.WallpaperBlend;FitCheck.IsChecked=appearance.FitInside;MotionCheck.IsChecked=appearance.ReduceMotion;
         ready=wasReady;ApplyAppearance();SaveAppearance();
     }
 }

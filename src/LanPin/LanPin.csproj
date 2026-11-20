@@ -1,9 +1,9 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
     <AssemblyName>LanPin</AssemblyName><RootNamespace>LanPin</RootNamespace>
-    <Version>0.2.0</Version><RollForward>LatestMajor</RollForward>
+    <Version>0.2.1</Version><RollForward>LatestMajor</RollForward>
     <ApplicationIcon>Assets\LanPin.ico</ApplicationIcon><ApplicationManifest>app.manifest</ApplicationManifest>
     <DebugType>none</DebugType><IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
