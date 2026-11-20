@@ -10,6 +10,7 @@ using System.Text.Json;
 namespace LanPin;
 
 record Message(string Type, string Id = "", Game? Game = null, string Target = "");
+record WorldNotice(string Key, string Title, string Host, int Port, bool Available);
 sealed class Channel(SslStream stream) : IDisposable
 {
     readonly SemaphoreSlim gate = new(1, 1);
@@ -38,6 +39,7 @@ sealed class Session : IAsyncDisposable
 {
     readonly Action<string> log;
     readonly Action<string> gameLog;
+    readonly Action<WorldNotice>? worldChanged;
     readonly CancellationTokenSource stop = new();
     readonly ConcurrentDictionary<string, (Game Game, DateTime Seen)> games = new();
     readonly ConcurrentDictionary<string, TaskCompletionSource<SslStream>> pending = new();
@@ -53,7 +55,7 @@ sealed class Session : IAsyncDisposable
     IPAddress? activeAddress;
     int port;
     LanInterface? nic;
-    public Session(Action<string> log, Action<string> gameLog) { this.log = log; this.gameLog = gameLog; }
+    public Session(Action<string> log, Action<string> gameLog, Action<WorldNotice>? worldChanged = null) { this.log = log; this.gameLog = gameLog; this.worldChanged = worldChanged; }
     void Track(Task task)
     {
         int id = Interlocked.Increment(ref taskId); tasks[id] = task;
@@ -101,7 +103,7 @@ sealed class Session : IAsyncDisposable
                     var message = await channel.Read(stop.Token);
                     if (message.Type == "game" && message.Game is { } game && game.Key.Length <= 128 && game.Motd.Length <= 256)
                     {
-                        if (localGames.TryGetValue(game.Key, out var local)) local.Seen = DateTime.UtcNow;
+                        if (localGames.TryGetValue(game.Key, out var local)) { local.Seen = DateTime.UtcNow; local.Notify(true); }
                         else if (localGames.Count < 16)
                         {
                             var entry = new LocalGame(game, nic!, this); localGames[game.Key] = entry;
@@ -134,6 +136,7 @@ sealed class Session : IAsyncDisposable
             }
             bool fresh = games.TryAdd(game.Key, (game, DateTime.UtcNow));
             games[game.Key] = (game, DateTime.UtcNow);
+            worldChanged?.Invoke(new(game.Key, game.Motd, game.Host, game.Port, true));
             if (fresh) { log($"发现存档：{game.Motd} · {game.Key}"); gameLog($"{game.Motd} → {game.Key}"); }
             await channel.Send(new("game", Game: game), stop.Token);
         }
@@ -197,12 +200,15 @@ sealed class Session : IAsyncDisposable
     {
         readonly Game game; readonly LanInterface nic; readonly Session owner;
         public DateTime Seen = DateTime.UtcNow;
+        IPEndPoint? endpoint;
+        public void Notify(bool available) { if(endpoint is not null) owner.worldChanged?.Invoke(new(game.Key,game.Motd,endpoint.Address.ToString(),endpoint.Port,available)); }
         public LocalGame(Game game, LanInterface nic, Session owner) { this.game = game; this.nic = nic; this.owner = owner; }
         public async Task Run(CancellationToken ct)
         {
             // Bind to the selected local interface so the discovery sender IP matches the game endpoint.
             var proxy = new TcpListener(nic.Address, 0); proxy.Start(8);
             int localPort = ((IPEndPoint)proxy.LocalEndpoint).Port;
+            endpoint = (IPEndPoint)proxy.LocalEndpoint; Notify(true);
             owner.gameLog($"{game.Motd} → {nic.Address}:{localPort}（备用手动连接）");
             owner.log($"已映射存档：{game.Motd} → {nic.Address}:{localPort}");
             using var ended = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -224,6 +230,7 @@ sealed class Session : IAsyncDisposable
             finally
             {
                 ended.Cancel(); proxy.Stop(); owner.localGames.TryRemove(game.Key, out _);
+                Notify(false);
                 try { await broadcast; } catch (OperationCanceledException) { }
             }
         }
@@ -261,9 +268,10 @@ sealed class Session : IAsyncDisposable
         try { await task; }
         catch (Exception e) when (!stop.IsCancellationRequested) { log(e.Message); stop.Cancel(); }
     }
+    public void RequestStop() { stop.Cancel(); listener?.Stop(); control?.Dispose(); }
     public async ValueTask DisposeAsync()
     {
-        stop.Cancel(); listener?.Stop(); control?.Dispose();
+        RequestStop();
         while (!tasks.IsEmpty) await Task.WhenAll(tasks.Values.Select(async t => { try { await t; } catch { } }));
         foreach (var item in pending.Values) if (item.Task.IsCompletedSuccessfully) item.Task.Result.Dispose();
         pending.Clear(); certificate?.Dispose(); CryptographicOperations.ZeroMemory(pin);
