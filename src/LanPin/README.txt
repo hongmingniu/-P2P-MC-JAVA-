@@ -1,4 +1,4 @@
-﻿LanPin Next v0.2.2 - 桌面界面预览版
+﻿LanPin Next v0.2.4 - 桌面界面预览版
 
 运行
 Windows 10/11 x64，需安装 .NET Windows Desktop Runtime 10 x64（本包不含运行时）。
@@ -6,6 +6,7 @@ Windows 10/11 x64，需安装 .NET Windows Desktop Runtime 10 x64（本包不含
 解压整个程序包后运行 LanPin.exe，不要只复制 EXE。软件不需要管理员权限。
 
 本版变化
+0. Windows 10 1903 及更新系统使用独立 Windows Composition + HostBackdropBrush 背景层，避免旧亚克力的拖动开销；尺寸更新按 16 ms 合并且跳过相同尺寸。装饰光晕改为径向渐变，背景图效果独立缓存，遮罩调整不重建原生材质。
 0. 修正 Windows 10 兼容毛玻璃误用全窗口 DWM 边框而呈现纯色的问题；首次显示后重新应用材质，避免窗口初始化覆盖。
 1. 改为 WPF 桌面界面，使用内置 HarmonyOS Sans SC Regular / Bold。
 2. 自绘标题栏，提供拖动、双击最大化、最小化、最大化 / 还原和关闭。
@@ -16,12 +17,12 @@ Windows 10/11 x64，需安装 .NET Windows Desktop Runtime 10 x64（本包不含
 
 桌面毛玻璃
 “外观 → 桌面毛玻璃（透出后方窗口）”默认开启。它使用 Windows 桌面合成材质，可模糊透出后面的窗口或桌面，文字和按钮保持清晰。
-Windows 11 22H2 及更新系统优先使用 Desktop Acrylic；Windows 10 1803 及更新系统尝试兼容材质。系统或设备不支持时回退到普通背景。
+Windows 11 22H2 及更新系统优先使用 Desktop Acrylic；Windows 10 1903 及更新系统使用独立合成背景层；较旧系统或初始化失败时尝试轻量模糊。系统或设备不支持时回退到普通背景。
 Windows 的“透明效果”必须开启：Windows 10 在 设置 → 个性化 → 颜色；Windows 11 在 设置 → 辅助功能 → 视觉效果。
 软件不会修改系统透明效果或注册表设置。高对比度模式、系统策略和远程会话也可能限制材质显示；实际状态见开关下方提示。
 “毛玻璃中的背景图混合”越低，后方窗口越明显；滑到 0 可去掉导入图片的覆盖。背景模糊只控制导入图片，桌面模糊由系统控制。
 关闭桌面毛玻璃会立即恢复普通背景，保留已选图片和其他外观设置。
-已在 Windows 10 创建真实窗口并收到原生毛玻璃接口成功返回；已验证系统关闭透明效果时的回退、设置保存、透明图层计算及切换逻辑。原生材质的桌面视觉效果及 Windows 11 路径仍待实机目视验收。
+已在 Windows 10 创建真实窗口并收到原生毛玻璃接口成功返回；已验证系统关闭透明效果时的回退、设置保存、透明图层计算及切换逻辑。v0.2.2 的透明效果已由用户实机确认。v0.2.4 拖动优化与 Windows 11 路径仍需实机操作验收。
 
 自定义背景
 打开“外观”，选择本地 PNG / JPG / BMP 图片，也可将一张图片拖进窗口。
@@ -51,7 +52,7 @@ Release 构建通过，零警告、零错误。
 这是预览版，未经独立安全审计及代码签名。
 
 开发与检查
-源码在 src/LanPin。需要 Windows 与 .NET SDK 8 或更新版本，无第三方 NuGet 依赖。
+源码在 src/LanPin。需要 Windows、.NET SDK 8 或更新版本、Visual Studio C++ Build Tools 和 Windows 10 SDK。无第三方 NuGet 依赖。原生桥接层会随 dotnet publish 自动构建，运行时无需安装编译器。
 dotnet publish src/LanPin/LanPin.csproj -c Release -o build/LanPin
 LanPin.exe --self-test：核心网络自测，结果写入程序目录。
 LanPin.exe --ui-check <输出目录>：在隔离配置中进行外观及窗口控制层集成检查，并输出截图和报告。

@@ -230,8 +230,8 @@ public partial class MainWindow : Window
     {
         var (a,b,glow)=appearance.Palette switch
         {"Dusk"=>("#6E5249","#282E2D","#B78D65"),"Slate"=>("#43586A","#1C2C3D","#679B9F"),_=>("#213B32","#10251E","#7E604E")};
-        BaseA.Color=(Color)ColorConverter.ConvertFromString(a);BaseB.Color=(Color)ColorConverter.ConvertFromString(b);WarmGlow.Fill=new SolidColorBrush((Color)ColorConverter.ConvertFromString(glow)){Opacity=.45};
-        var tint=(Color)ColorConverter.ConvertFromString(b);tint.A=(byte)(45+appearance.Shade*110);
+        BaseA.Color=(Color)ColorConverter.ConvertFromString(a);BaseB.Color=(Color)ColorConverter.ConvertFromString(b);var glowColor=(Color)ColorConverter.ConvertFromString(glow);glowColor.A=114;GlowStop.Color=glowColor;
+        var tint=(Color)ColorConverter.ConvertFromString(b);tint.A=76;
         backdrop.Apply(appearance.DesktopGlass,tint);
         ApplyMaterialLayers(backdrop.Active);
         MaterialStatus.Text=backdrop.Status;
@@ -243,6 +243,7 @@ public partial class MainWindow : Window
         BlurValue.Text=$"{appearance.Blur:0}";ShadeValue.Text=$"{appearance.Shade:P0}";PanelValue.Text=$"{appearance.PanelOpacity:P0}";
     }
     internal bool NativeGlassActive=>backdrop.Active;
+    internal DesktopBackdrop NativeBackdrop=>backdrop;
     internal void ApplyMaterialLayers(bool active)
     {
         Background=active?Brushes.Transparent:new SolidColorBrush(Color.FromRgb(16,37,29));

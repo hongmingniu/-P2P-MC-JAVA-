@@ -80,6 +80,23 @@ static class UiChecks
             Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity<.2&&window.Opacity==1,"Native glass exposes the compositor while keeping the whole window fully opaque");
             Check(window.WallpaperImage.Opacity==.31,"Native glass blends custom imagery instead of covering the compositor");
         }
+        if(window.NativeGlassActive)
+        {
+            if(OperatingSystem.IsWindowsVersionAtLeast(10,0,18362)&&!OperatingSystem.IsWindowsVersionAtLeast(10,0,22621))
+                Check(window.NativeBackdrop.Kind==DesktopMaterial.HostComposition,"Windows 10 uses the independent host-backdrop composition layer");
+            int applies=window.NativeBackdrop.MaterialApplyCount;
+            for(int cycle=0;cycle<1000;cycle++){window.NativeBackdrop.SetLiveMove(true);window.NativeBackdrop.SetLiveMove(false);}
+            Check(window.NativeBackdrop.MaterialApplyCount==applies,"One thousand move lifecycle updates do not recreate the material");
+            int resizes=window.NativeBackdrop.HostResizeCount;
+            for(int cycle=0;cycle<1000;cycle++)window.NativeBackdrop.UpdateHostSize();
+            Check(window.NativeBackdrop.HostResizeCount==resizes,"Unchanged client size skips one thousand redundant composition updates");
+            window.NativeBackdrop.SetLiveMove(true);
+            Check(window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Entering live move keeps the independent desktop layer active");
+            window.NativeBackdrop.SetLiveMove(false);
+            Check(!window.NativeBackdrop.LiveMove&&window.NativeGlassActive,"Exiting live move preserves the desktop material");
+        }
+        Check(window.WarmGlow.Effect==null&&window.DefaultBackdrop.Children.OfType<System.Windows.Shapes.Ellipse>().All(x=>x.Effect==null),"Large decorative glows use gradients without per-frame blur effects");
+        Check(window.WallpaperImage.CacheMode is BitmapCache,"Wallpaper effect output is cached independently of the animated page");
         window.ApplyMaterialLayers(true);
         Check(window.Background is SolidColorBrush {Color.A:0}&&window.DefaultBackdrop.Opacity==.10&&window.Opacity==1,"Glass layer composition leaves the compositor exposed without fading window contents");
         Check(window.WallpaperImage.Opacity==.31&&window.ShadeLayer.Opacity<.2,"Glass layer composition preserves translucent image and shade layers");
